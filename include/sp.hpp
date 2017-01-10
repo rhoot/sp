@@ -1,3 +1,14 @@
+// sp - string formatting micro-library
+//
+// Written in 2017 by Johan Sköld
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to the public
+// domain worldwide. This software is distributed without any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication along
+// with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+
 #include <cstdint> // int32_t, uint64_t
 #include <cstdio> // printf, FILE, fwrite, fprintf
 #include <cstring> // std::memcpy
@@ -21,7 +32,7 @@ namespace sp {
 
         int32_t result() const;
         void write(char ch);
-        void write(int32_t length, void* data);
+        void write(int32_t length, const void* data);
 
     private:
         FILE* m_stream = nullptr;
@@ -115,7 +126,7 @@ namespace sp {
     {
         if (m_length >= 0) {
             if (m_stream) {
-                const auto written = std::fwrite(data, 1, bytes, m_stream);
+                const int32_t written = std::fwrite(data, 1, bytes, m_stream);
 
                 if (written == bytes) {
                     m_length += written;
@@ -126,7 +137,7 @@ namespace sp {
                 m_length += bytes;
 
                 if (m_size) {
-                    const auto toCopy = std::min(m_size - sizeof(char), bytes);
+                    const auto toCopy = std::min(m_size - 1, bytes);
                     std::memcpy(m_buffer, data, toCopy);
                     m_buffer[toCopy] = 0;
                     m_buffer += toCopy;
@@ -146,7 +157,7 @@ namespace sp {
         char type = 0;
     };
 
-    bool format_value(Output& output, const FormatFlags& flags, char32_t value)
+    bool format_value(Output&, const FormatFlags&, char32_t)
     {
         return false;
     }
@@ -304,12 +315,12 @@ namespace sp {
     struct DummyArg {
     };
 
-    bool format_value(Output& output, const FormatFlags& flags, const DummyArg&)
+    bool format_value(Output&, const FormatFlags&, const DummyArg&)
     {
         return false;
     }
 
-    bool format_index(Output& output, const FormatFlags& flags, int32_t index)
+    bool format_index(Output&, const FormatFlags&, int32_t)
     {
         return false;
     }
@@ -325,22 +336,23 @@ namespace sp {
     }
 
     template <class... Args>
-    void format(Output& output, const char fmt[], Args&&... args)
+    int32_t format(Output& output, const char fmt[], Args&&... args)
     {
         enum State {
-            OPENER,
-            INDEX,
-            FLAGS,
-            ALIGN,
-            SIGN,
-            ALTERNATE,
-            WIDTH,
-            PRECISION,
-            TYPE,
-            CLOSER,
+            STATE_OPENER,
+            STATE_INDEX,
+            STATE_FLAGS,
+            STATE_ALIGN,
+            STATE_SIGN,
+            STATE_ALTERNATE,
+            STATE_WIDTH,
+            STATE_PRECISION,
+            STATE_TYPE,
+            STATE_CLOSER,
         };
 
-        auto state = OPENER;
+        auto before = output.result();
+        auto state = STATE_OPENER;
         auto next = fmt;
         auto start = fmt;
 
@@ -353,14 +365,14 @@ namespace sp {
             const auto ch = *ptr;
 
             switch (state) {
-            case OPENER:
+            case STATE_OPENER:
                 if (ch == '{') {
                     output.write(int32_t(ptr - start), start);
                     if (*next != '{') {
                         index = -1;
                         start = ptr;
                         flags = FormatFlags();
-                        state = INDEX;
+                        state = STATE_INDEX;
                     } else {
                         start = next++;
                     }
@@ -373,7 +385,7 @@ namespace sp {
                 }
                 break;
 
-            case INDEX:
+            case STATE_INDEX:
                 if (ch >= '0' && ch <= '9') {
                     index = (index < 0)
                         ? (ch - '0')
@@ -383,21 +395,21 @@ namespace sp {
                         index = prev + 1;
                     }
                     prev = index;
-                    state = FLAGS;
+                    state = STATE_FLAGS;
                     --next;
                 }
                 break;
 
-            case FLAGS:
+            case STATE_FLAGS:
                 if (ch == ':') {
-                    state = ALIGN;
+                    state = STATE_ALIGN;
                 } else {
-                    state = CLOSER;
+                    state = STATE_CLOSER;
                     --next;
                 }
                 break;
 
-            case ALIGN:
+            case STATE_ALIGN:
                 switch (ch) {
                 case '<':
                 case '>':
@@ -408,7 +420,7 @@ namespace sp {
                     } else {
                         flags.fill = flags.align;
                         flags.align = ch;
-                        state = SIGN;
+                        state = STATE_SIGN;
                     }
                     break;
                 default:
@@ -420,14 +432,14 @@ namespace sp {
                             flags.align = 0;
                             --next;
                         }
-                        state = SIGN;
+                        state = STATE_SIGN;
                         --next;
                     }
                     break;
                 }
                 break;
 
-            case SIGN:
+            case STATE_SIGN:
                 switch (ch) {
                 case '+':
                 case '-':
@@ -438,19 +450,19 @@ namespace sp {
                     --next;
                     break;
                 }
-                state = ALTERNATE;
+                state = STATE_ALTERNATE;
                 break;
 
-            case ALTERNATE:
+            case STATE_ALTERNATE:
                 if (ch == '#') {
                     flags.alternate = true;
                 } else {
                     --next;
                 }
-                state = WIDTH;
+                state = STATE_WIDTH;
                 break;
 
-            case WIDTH:
+            case STATE_WIDTH:
                 if (ch >= '0' && ch <= '9') {
                     if (flags.width < 0) {
                         if (ch == '0') {
@@ -461,23 +473,23 @@ namespace sp {
                     }
                     flags.width = (flags.width * 10) + (ch - '0');
                 } else {
-                    state = PRECISION;
+                    state = STATE_PRECISION;
                     --next;
                 }
                 break;
 
-            case PRECISION:
+            case STATE_PRECISION:
                 if (flags.precision < 0 && ch == '.') {
                     flags.precision = 0;
                 } else if (flags.precision >= 0 && ch >= '0' && ch <= '9') {
                     flags.precision = (flags.precision * 10) + (ch - '0');
                 } else {
-                    state = TYPE;
+                    state = STATE_TYPE;
                     --next;
                 }
                 break;
 
-            case TYPE:
+            case STATE_TYPE:
                 switch (ch) {
                 case 'b':
                 case 'c':
@@ -500,16 +512,16 @@ namespace sp {
                     --next;
                     break;
                 }
-                state = CLOSER;
+                state = STATE_CLOSER;
                 break;
 
-            case CLOSER:
+            case STATE_CLOSER:
                 // if we get here without a valid closer, or an escaped opener,
                 // the format is bogus and we'll ignore it.
                 if (ch == '}' && format_index(output, flags, index, std::forward<Args>(args)...)) {
                     start = next;
                 }
-                state = OPENER;
+                state = STATE_OPENER;
                 break;
             }
         }
@@ -518,6 +530,9 @@ namespace sp {
         if (start != next) {
             output.write(int32_t(next - start), start);
         }
+
+        auto after = output.result();
+        return after < 0 ? after : (after - before);
     }
 
     template <class... Args>
