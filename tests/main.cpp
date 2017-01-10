@@ -59,27 +59,79 @@ TEST_CASE("Output with a string buffer")
     }
 }
 
-template <class... Args>
-static void test_format(const char expected[], const char fmt[], Args&&... args)
+#define TEST_FORMAT(expected, fmt, ...)                                                  \
+    for (;;) {                                                                           \
+        auto buffer = (char*)std::malloc(10 * 1024 * 1024);                              \
+        buffer[0] = 0;                                                                   \
+        const auto expectedLen = int32_t(std::strlen(expected));                         \
+        const auto actualLen = sp::format(buffer, 10 * 1024 * 1024, fmt, ##__VA_ARGS__); \
+        REQUIRE(expectedLen == actualLen);                                               \
+        REQUIRE(std::strcmp(expected, buffer) == 0);                                     \
+        std::free(buffer);                                                               \
+        break;                                                                           \
+    }
+
+TEST_CASE("Unformatted")
 {
-    char buffer[1024] = { 0 };
-    const int32_t expectedLen = std::strlen(expected);
-    const int32_t actualLen = sp::format(buffer, fmt, std::forward<Args>(args)...);
-    REQUIRE(expectedLen == actualLen);
-    REQUIRE(std::strcmp(expected, buffer) == 0);
+    TEST_FORMAT("", "");
+    TEST_FORMAT("foo", "foo");
+    TEST_FORMAT("{", "{{");
+    TEST_FORMAT("}", "}}");
+    TEST_FORMAT("{}", "{{}}");
+    TEST_FORMAT("}{", "}}{{");
+    TEST_FORMAT("{0}", "{{0}}", 1);
+    TEST_FORMAT("{{0}}", "{{{{0}}}}", 1);
+    TEST_FORMAT("a{b", "a{{b");
+    TEST_FORMAT("a}b", "a}}b");
 }
 
-TEST_CASE("python format tests")
+TEST_CASE("Integer formats")
 {
-    test_format("", "");
-    test_format("a", "a");
-    test_format("ab", "ab");
-    test_format("a{", "a{{");
-    test_format("a}", "a}}");
-    test_format("{b", "{{b");
-    test_format("}b", "}}b");
-    test_format("a{b", "a{{b");
+    TEST_FORMAT("42", "{}", 42);
+    TEST_FORMAT("-15", "{0}", -15);
+    TEST_FORMAT("+96", "{:+}", 96);
+    TEST_FORMAT(" 7", "{: }", 7);
+    TEST_FORMAT(" 32", "{: 3}", 32);
+    TEST_FORMAT("  75", "{: 4}", 75);
+    TEST_FORMAT("   4", "{:4}", 4);
+    TEST_FORMAT("300", "{:0<3}", 3);
+    TEST_FORMAT(" 2  ", "{:^4}", 2);
+    TEST_FORMAT("  8  ", "{:^5}", 8);
+    TEST_FORMAT("+  52", "{:=+5}", 52);
+    TEST_FORMAT("101000", "{:b}", 40);
+    TEST_FORMAT("0b1000100", "{:#b}", 68);
+    TEST_FORMAT("77", "{:o}", 63);
+    TEST_FORMAT("0o36", "{:#o}", 30);
+    TEST_FORMAT("abc", "{:x}", 2748);
+    TEST_FORMAT("0xba", "{:#x}", 186);
+    TEST_FORMAT("F00", "{:X}", 3840);
+    TEST_FORMAT("0XBAD", "{:#X}", 2989);
 
-    // test_format("My name is Fred", "My name is {0}", "Fred");
-    // test_format("My name is Fred :-{}", "My name is {0} :-{{}}", "Fred");
+    TEST_FORMAT("-0b10000000", "{:#b}", INT8_MIN);
+    TEST_FORMAT("+  177", "{:=+6o}", INT8_MAX);
+    TEST_FORMAT(">> 18446744073709551615", "{:>> 23}", UINT64_MAX);
+    TEST_FORMAT("0x7fffffffffffffff", "{:#x}", INT64_MAX);
+}
+
+TEST_CASE("String formats")
+{
+    TEST_FORMAT("abc", "a{}c", "b");
+    TEST_FORMAT("bar", "{}{}{}", "b", "a", "r");
+    TEST_FORMAT("baz", "{2}{0}{}", "a", "z", "b");
+    TEST_FORMAT("{foo}", "{{{}}}", "foo");
+    TEST_FORMAT("foo ", "{:4}", "foo");
+    TEST_FORMAT("foo", "{:o<3}", "f");
+    TEST_FORMAT(".foo", "{:.>4}", "foo");
+    TEST_FORMAT("  foo  ", "{:^7}", "foo");
+    TEST_FORMAT("  foo   ", "{:^8}", "foo");
+    TEST_FORMAT("cc", "{:c<2s}", "c");
+    TEST_FORMAT("trunc", "{:.5}", "truncate");
+    TEST_FORMAT("--ball---", "{:-^9.4s}", "ballet");
+
+    std::string str(999, ' ');
+    str.push_back('a');
+    TEST_FORMAT(str.data(), "{0:>1000}", "a");
+
+    str = std::string(1000, ' ');
+    TEST_FORMAT(str.data(), "{0:1000}", "");
 }

@@ -24,7 +24,7 @@ namespace sp {
     class Output {
     public:
         Output();
-        Output(char buffer[], int32_t size);
+        Output(char buffer[], size_t size);
         explicit Output(FILE* stream);
 
         Output(const Output&) = delete;
@@ -32,7 +32,7 @@ namespace sp {
 
         int32_t result() const;
         void write(char ch);
-        void write(int32_t length, const void* data);
+        void write(size_t length, const void* data);
 
     private:
         FILE* m_stream = nullptr;
@@ -51,9 +51,9 @@ namespace sp {
     int32_t format(FILE* file, const char fmt[], Args&&... args);
 
     template <class... Args>
-    int32_t format(char buffer[], int32_t size, const char fmt[], Args&&... args);
+    int32_t format(char buffer[], size_t size, const char fmt[], Args&&... args);
 
-    template <int32_t N, class... Args>
+    template <size_t N, class... Args>
     int32_t format(char (&buffer)[N], const char fmt[], Args&&... args);
 
 } // namespace sp
@@ -69,9 +69,9 @@ namespace sp {
     {
     }
 
-    inline Output::Output(char buffer[], int32_t size)
+    inline Output::Output(char buffer[], size_t size)
         : m_buffer(buffer)
-        , m_size(size)
+        , m_size(int32_t(size))
     {
     }
 
@@ -85,63 +85,31 @@ namespace sp {
         return m_length;
     }
 
-    // template <class... Args>
-    // void Print(const char fmt[], Args&&... args)
-    // {
-    //     if (m_length >= 0) {
-    //         if (m_stream) {
-    //             const auto printed = std::fprintf(m_stream, fmt, std::forward<Args>(args)...);
-
-    //             if (printed >= 0) {
-    //                 m_length += printed;
-    //             } else {
-    //                 m_length = -1;
-    //             }
-    //         } else {
-    //             const auto printed = std::snprintf(m_buffer, m_size, fmt, std::forward<Args>(args)...);
-
-    //             if (printed >= 0) {
-    //                 m_length += printed;
-
-    //                 if (printed < m_size) {
-    //                     m_buffer += printed;
-    //                     m_size -= printed;
-    //                 } else {
-    //                     m_buffer += m_size - 1;
-    //                     m_size = 1;
-    //                 }
-    //             } else {
-    //                 m_length = -1;
-    //             }
-    //         }
-    //     }
-    // }
-
     inline void Output::write(char ch)
     {
         write(sizeof(ch), &ch);
     }
 
-    inline void Output::write(int32_t bytes, const void* data)
+    inline void Output::write(size_t bytes, const void* data)
     {
         if (m_length >= 0) {
             if (m_stream) {
-                const int32_t written = std::fwrite(data, 1, bytes, m_stream);
+                const auto written = std::fwrite(data, 1, bytes, m_stream);
 
                 if (written == bytes) {
-                    m_length += written;
+                    m_length += int32_t(written);
                 } else {
                     m_length = -1;
                 }
             } else {
-                m_length += bytes;
+                m_length += int32_t(bytes);
 
                 if (m_size) {
-                    const auto toCopy = std::min(m_size - 1, bytes);
+                    const auto toCopy = std::min(size_t(m_size) - 1, bytes);
                     std::memcpy(m_buffer, data, toCopy);
                     m_buffer[toCopy] = 0;
                     m_buffer += toCopy;
-                    m_size -= toCopy;
+                    m_size -= int32_t(toCopy);
                 }
             }
         }
@@ -241,10 +209,10 @@ namespace sp {
 
             switch (flags.align) {
             case '^':
-                if (width != nchars) {
-                    leadSpace = ((width + 1) / 2) - (nchars / 2); // width rounded up
-                    tailSpace = (width / 2) - ((nchars + 1) / 2); // nchars rounded up
-                }
+                leadSpace = (width / 2) - ((nchars + 1) / 2); // nchars rounded up
+                tailSpace = ((width + 1) / 2) - (nchars / 2); // width rounded up
+                leadSpace += (width - nchars - 1) & 1; // if both are even or both are odd, we need to add one for correction
+                tailSpace -= (width - nchars - 1) & 1; // if both are even or both are odd, we need to remove one for correction
                 break;
             case '<':
                 tailSpace = width - nchars;
@@ -310,6 +278,56 @@ namespace sp {
     bool format_value(Output& output, const FormatFlags& flags, int32_t value)
     {
         return format_value(output, flags, int64_t(value));
+    }
+
+    bool format_value(Output& output, const FormatFlags& flags, const char str[])
+    {
+        // determine the amount of characters to write
+        auto nchars = int32_t(strlen(str));
+
+        if (flags.precision >= 0) {
+            nchars = std::min(flags.precision, nchars);
+        }
+
+        // determine width
+        const int32_t width = std::max(flags.width, nchars);
+
+        // determine alignment
+        int32_t leadSpace = 0;
+        int32_t tailSpace = 0;
+
+        switch (flags.align) {
+        case '^':
+            leadSpace = (width / 2) - ((nchars + 1) / 2); // nchars rounded up
+            tailSpace = ((width + 1) / 2) - (nchars / 2); // width rounded up
+            leadSpace += (width - nchars - 1) & 1; // if both are even or both are odd, we need to add one for correction
+            tailSpace -= (width - nchars - 1) & 1; // if both are even or both are odd, we need to remove one for correction
+            break;
+        case '>':
+            leadSpace = width - nchars;
+            break;
+        case '<':
+        default:
+            tailSpace = width - nchars;
+            break;
+        }
+
+        // apply leading padding
+        const char fill = flags.fill ? flags.fill : ' ';
+
+        while (leadSpace--) {
+            output.write(fill);
+        }
+
+        // write string
+        output.write(nchars, str);
+
+        // apply tailing padding
+        while (tailSpace--) {
+            output.write(fill);
+        }
+
+        return true;
     }
 
     struct DummyArg {
@@ -410,33 +428,33 @@ namespace sp {
                 break;
 
             case STATE_ALIGN:
-                switch (ch) {
-                case '<':
-                case '>':
-                case '=':
-                case '^':
-                    if (!flags.align) {
-                        flags.align = ch;
-                    } else {
-                        flags.fill = flags.align;
-                        flags.align = ch;
-                        state = STATE_SIGN;
-                    }
-                    break;
-                default:
-                    if (!flags.fill && !flags.align) {
+                if (ch == '}' || ch == '{') {
+                    --next;
+                } else {
+                    switch (*next) {
+                    case '<':
+                    case '>':
+                    case '=':
+                    case '^':
                         flags.fill = ch;
-                    } else {
-                        if (!flags.align) {
-                            flags.fill = 0;
-                            flags.align = 0;
-                            --next;
-                        }
+                        flags.align = *next++;
                         state = STATE_SIGN;
-                        --next;
+                        break;
+                    default:
+                        switch (ch) {
+                        case '<':
+                        case '>':
+                        case '=':
+                        case '^':
+                            flags.align = ch;
+                            break;
+                        default:
+                            --next;
+                            break;
+                        }
                     }
-                    break;
                 }
+                state = STATE_SIGN;
                 break;
 
             case STATE_SIGN:
@@ -552,14 +570,14 @@ namespace sp {
     }
 
     template <class... Args>
-    int32_t format(char buffer[], int32_t size, const char fmt[], Args&&... args)
+    int32_t format(char buffer[], size_t size, const char fmt[], Args&&... args)
     {
         Output output(buffer, size);
         format(output, fmt, std::forward<Args>(args)...);
         return output.result();
     }
 
-    template <int32_t N, class... Args>
+    template <size_t N, class... Args>
     int32_t format(char (&buffer)[N], const char fmt[], Args&&... args)
     {
         Output output(buffer, N);
