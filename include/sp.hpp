@@ -22,47 +22,96 @@
 
 namespace sp {
 
+    /// Output for the string formatter.
     class Output {
     public:
+        /// Construct an output that writes to standard out.
         Output();
+
+        /// Construct an output that writes into the provided buffer, with the
+        /// given size.
         Output(char buffer[], size_t size);
+
+        /// Construct an output that writes into the provided FILE stream.
         explicit Output(FILE* stream);
 
-        Output(const Output&) = delete;
-        Output& operator=(const Output&) = delete;
-
+        /// Return the result of the print operation.
+        ///
+        /// If the underlying output is a FILE stream:
+        /// - Return the amount of `char`s written in case of success.
+        /// - Return `-1` in case of error.
+        ///
+        /// If the underlying output is a buffer:
+        /// - Return the amount of `char`s that make up the result of the
+        ///   formatted string. If the buffer was not big enough to hold the
+        ///   entire formatted string, the returned length may be larger than
+        ///   the size of the buffer.
+        /// - Return `-1` in case of error.
         int32_t result() const;
+
+        /// Write the provided character into the output.
         void write(char ch);
+
+        /// Write the provided data into the output.
         void write(size_t length, const void* data);
 
     private:
+        Output(const Output&) = delete;
+        Output& operator=(const Output&) = delete;
+
         FILE* m_stream = nullptr;
         char* m_buffer = nullptr;
         int32_t m_size = 0;
         int32_t m_length = 0;
     };
 
+    /// View into a string.
     struct StringView {
-        const char* const str = nullptr;
-        const int32_t length = 0;
+        const char* const ptr = nullptr; //< Pointer to the string.
+        const int32_t length = 0; //< Length of the string.
 
+        /// Construct an empty StringView.
         StringView();
+
+        /// Construct a StringView from the provided null-terminated string.
         StringView(const char str[]);
+
+        /// Construct a StringView from the provided string, with the provided
+        /// length (in `char`).
         StringView(const char str[], int32_t length);
     };
 
+    /// Print to standard out using the provided format with the provided
+    /// format arguments. Return the amount of `char`s written, or `-1` in case
+    /// of an error.
     template <class... Args>
     int32_t print(const StringView& fmt, Args&&... args);
 
+    /// Print to the provided output using the provided format with the
+    /// provided format arguments. Return the result of calling
+    /// `output.result()`.
     template <class... Args>
     int32_t format(Output& output, const StringView& fmt, Args&&... args);
 
+    /// Print to the provided FILE stream using the provided format with the
+    /// provided format arguments. Return the amount of `char`s written, or
+    /// `-1` in case of an error.
     template <class... Args>
     int32_t format(FILE* file, const StringView& fmt, Args&&... args);
 
+    /// Print to the provided buffer of the provided size, using the provided
+    /// format string with the provided format arguments. Return the amount of
+    /// `char`s that make up the resulting formatted string. If the buffer was
+    /// not big enough to hold the entire result, the returned value may be
+    /// larger than the buffer size. Return `-1` in case of an error.
     template <class... Args>
     int32_t format(char buffer[], size_t size, const StringView& fmt, Args&&... args);
 
+    /// Print to the provided statically sized buffer, using the provided
+    /// format string with the provided format arguments. Return the amount of
+    /// `char`s that make up the resulting formatted string. If the buffer was
+    /// not big enough to hold the entire result, the returned value may be
+    /// larger than the buffer size. Return `-1` in case of an error.
     template <size_t N, class... Args>
     int32_t format(char (&buffer)[N], const StringView& fmt, Args&&... args);
 
@@ -128,13 +177,13 @@ namespace sp {
     inline StringView::StringView() {}
 
     inline StringView::StringView(const char str[])
-        : str(str)
+        : ptr(str)
         , length(int32_t(std::strlen(str)))
     {
     }
 
     inline StringView::StringView(const char str[], int32_t length)
-        : str(str)
+        : ptr(str)
         , length(length)
     {
     }
@@ -460,7 +509,7 @@ namespace sp {
         }
 
         // write string
-        output.write(nchars, str.str);
+        output.write(nchars, str.ptr);
 
         // apply tailing padding
         while (tailSpace--) {
@@ -511,9 +560,9 @@ namespace sp {
 
         auto before = output.result();
         auto state = STATE_OPENER;
-        auto next = fmt.str;
-        auto start = fmt.str;
-        auto term = fmt.str + fmt.length;
+        auto next = fmt.ptr;
+        auto start = fmt.ptr;
+        auto term = fmt.ptr + fmt.length;
 
         FormatFlags flags;
         auto prev = -1;
