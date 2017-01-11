@@ -198,15 +198,137 @@ namespace sp {
         char type = 0;
     };
 
-    inline bool format_value(Output&, const FormatFlags&, char32_t)
+    inline bool parse_format(const StringView& fmt, FormatFlags* flags)
     {
-        return false;
+        enum State {
+            STATE_ALIGN,
+            STATE_SIGN,
+            STATE_ALTERNATE,
+            STATE_WIDTH,
+            STATE_PRECISION,
+            STATE_TYPE,
+            STATE_DONE,
+        };
+
+        auto state = STATE_ALIGN;
+        auto next = fmt.ptr;
+        auto term = fmt.ptr + fmt.length;
+        *flags = FormatFlags{};
+
+        while (next < term) {
+            const auto ptr = next++;
+            const auto ch = *ptr;
+
+            switch (state) {
+            case STATE_ALIGN: {
+                const auto isAlign = [](char ch) {
+                    return (ch >= '<' && ch <= '>') || ch == '^';
+                };
+
+                if (next < term && isAlign(*next)) {
+                    flags->fill = ch;
+                    flags->align = *next++;
+                } else if (isAlign(ch)) {
+                    flags->align = ch;
+                } else {
+                    --next;
+                }
+
+                state = STATE_SIGN;
+                break;
+            }
+
+            case STATE_SIGN:
+                switch (ch) {
+                case '+':
+                case '-':
+                case ' ':
+                    flags->sign = ch;
+                    break;
+                default:
+                    --next;
+                    break;
+                }
+                state = STATE_ALTERNATE;
+                break;
+
+            case STATE_ALTERNATE:
+                if (ch == '#') {
+                    flags->alternate = true;
+                } else {
+                    --next;
+                }
+                state = STATE_WIDTH;
+                break;
+
+            case STATE_WIDTH:
+                if (ch >= '0' && ch <= '9') {
+                    if (flags->width < 0) {
+                        if (ch == '0') {
+                            flags->fill = '0';
+                            flags->align = '=';
+                        }
+                        flags->width = 0;
+                    }
+                    flags->width = (flags->width * 10) + (ch - '0');
+                } else {
+                    state = STATE_PRECISION;
+                    --next;
+                }
+                break;
+
+            case STATE_PRECISION:
+                if (flags->precision < 0 && ch == '.') {
+                    flags->precision = 0;
+                } else if (flags->precision >= 0 && ch >= '0' && ch <= '9') {
+                    flags->precision = (flags->precision * 10) + (ch - '0');
+                } else {
+                    state = STATE_TYPE;
+                    --next;
+                }
+                break;
+
+            case STATE_TYPE:
+                switch (ch) {
+                case 'b':
+                case 'd':
+                case 'e':
+                case 'E':
+                case 'f':
+                case 'F':
+                case 'g':
+                case 'G':
+                case 'n':
+                case 'o':
+                case 's':
+                case 'x':
+                case 'X':
+                case '%':
+                    flags->type = ch;
+                    break;
+                default:
+                    --next;
+                    break;
+                }
+                state = STATE_DONE;
+                break;
+
+            case STATE_DONE:
+                // if we get here, it means there's stuff in there after the
+                // flags, in which case we should fail.
+                return false;
+            }
+        }
+
+        return true;
     }
 
-    inline bool format_int(Output& output, const FormatFlags& flags, bool isNegative, uint64_t value)
+    inline bool format_int(Output& output, const StringView& format, bool isNegative, uint64_t value)
     {
-        if (flags.type == 'c') {
-            return !isNegative && format_value(output, flags, char32_t(value));
+        FormatFlags flags;
+
+        if (!parse_format(format, &flags)) {
+            return false;
         }
 
         // determine base
@@ -326,36 +448,42 @@ namespace sp {
         return true;
     }
 
-    inline bool format_value(Output& output, const FormatFlags& flags, uint64_t value)
+    inline bool format_value(Output& output, const StringView& format, uint64_t value)
     {
-        return format_int(output, flags, false, value);
+        return format_int(output, format, false, value);
     }
 
-    inline bool format_value(Output& output, const FormatFlags& flags, int64_t value)
+    inline bool format_value(Output& output, const StringView& format, int64_t value)
     {
         // negating INT64_MIN is undefined behavior; the result is out of range of
         // a signed 64-bit int
         if (value != INT64_MIN) {
             const auto abs = (value < 0) ? uint64_t(-value) : uint64_t(value);
-            return format_int(output, flags, value < 0, abs);
+            return format_int(output, format, value < 0, abs);
         } else {
-            return format_int(output, flags, true, uint64_t(value));
+            return format_int(output, format, true, uint64_t(value));
         }
     }
 
-    inline bool format_value(Output& output, const FormatFlags& flags, uint32_t value)
+    inline bool format_value(Output& output, const StringView& format, uint32_t value)
     {
-        return format_value(output, flags, uint64_t(value));
+        return format_value(output, format, uint64_t(value));
     }
 
-    inline bool format_value(Output& output, const FormatFlags& flags, int32_t value)
+    inline bool format_value(Output& output, const StringView& format, int32_t value)
     {
-        return format_value(output, flags, int64_t(value));
+        return format_value(output, format, int64_t(value));
     }
 
     template <class F>
-    bool format_float(Output& output, const FormatFlags& flags, F value)
+    bool format_float(Output& output, const StringView& format, F value)
     {
+        FormatFlags flags;
+
+        if (!parse_format(format, &flags)) {
+            return false;
+        }
+
         // I *really* have no interest in serializing floats/doubles... so
         // let's not. Instead, let's build a format string for snprintf to do
         // the heavy work, and we'll just do alignment and stuff.
@@ -390,12 +518,12 @@ namespace sp {
             break;
         }
 
-        char format[16];
-        snprintf(format, sizeof(format), "%%+.%d%c%s", precision, type, suffix);
+        char numFormat[16];
+        snprintf(numFormat, sizeof(numFormat), "%%+.%d%c%s", precision, type, suffix);
 
         // produce the formatted value
         char buffer[512];
-        const int32_t ndigits = snprintf(buffer, sizeof(buffer), format, value) - 1;
+        const int32_t ndigits = snprintf(buffer, sizeof(buffer), numFormat, value) - 1;
         const auto digits = buffer + 1;
 
         // determine sign
@@ -459,18 +587,24 @@ namespace sp {
         return true;
     }
 
-    inline bool format_value(Output& output, const FormatFlags& flags, double value)
+    inline bool format_value(Output& output, const StringView& format, double value)
     {
-        return format_float(output, flags, value);
+        return format_float(output, format, value);
     }
 
-    inline bool format_value(Output& output, const FormatFlags& flags, float value)
+    inline bool format_value(Output& output, const StringView& format, float value)
     {
-        return format_float(output, flags, value);
+        return format_float(output, format, value);
     }
 
-    inline bool format_value(Output& output, const FormatFlags& flags, const StringView& str)
+    inline bool format_value(Output& output, const StringView& format, const StringView& str)
     {
+        FormatFlags flags;
+
+        if (!parse_format(format, &flags)) {
+            return false;
+        }
+
         // determine the amount of characters to write
         auto nchars = str.length;
 
@@ -522,23 +656,23 @@ namespace sp {
     struct DummyArg {
     };
 
-    inline bool format_value(Output&, const FormatFlags&, const DummyArg&)
+    inline bool format_value(Output&, const StringView&, const DummyArg&)
     {
         return false;
     }
 
-    inline bool format_index(Output&, const FormatFlags&, int32_t)
+    inline bool format_index(Output&, const StringView&, int32_t)
     {
         return false;
     }
 
     template <class Arg, class... Rest>
-    bool format_index(Output& output, const FormatFlags& flags, int32_t index, Arg&& arg, Rest&&... rest)
+    bool format_index(Output& output, const StringView& format, int32_t index, Arg&& arg, Rest&&... rest)
     {
         if (!index) {
-            return format_value(output, flags, std::forward<Arg>(arg));
+            return format_value(output, format, std::forward<Arg>(arg));
         } else {
-            return format_index(output, flags, index - 1, std::forward<Rest>(rest)...);
+            return format_index(output, format, index - 1, std::forward<Rest>(rest)...);
         }
     }
 
@@ -548,13 +682,8 @@ namespace sp {
         enum State {
             STATE_OPENER,
             STATE_INDEX,
+            STATE_MARKER,
             STATE_FLAGS,
-            STATE_ALIGN,
-            STATE_SIGN,
-            STATE_ALTERNATE,
-            STATE_WIDTH,
-            STATE_PRECISION,
-            STATE_TYPE,
             STATE_CLOSER,
         };
 
@@ -564,7 +693,7 @@ namespace sp {
         auto start = fmt.ptr;
         auto term = fmt.ptr + fmt.length;
 
-        FormatFlags flags;
+        const char* formatStart = nullptr;
         auto prev = -1;
         auto index = -1;
 
@@ -581,7 +710,7 @@ namespace sp {
                         if (*next != '{') {
                             index = -1;
                             start = ptr;
-                            flags = FormatFlags();
+                            formatStart = nullptr;
                             state = STATE_INDEX;
                         } else {
                             start = next++;
@@ -606,131 +735,41 @@ namespace sp {
                         index = prev + 1;
                     }
                     prev = index;
-                    state = STATE_FLAGS;
+                    state = STATE_MARKER;
                     --next;
                 }
                 break;
 
-            case STATE_FLAGS:
+            case STATE_MARKER:
                 if (ch == ':') {
-                    state = STATE_ALIGN;
+                    state = STATE_FLAGS;
                 } else {
                     state = STATE_CLOSER;
                     --next;
                 }
                 break;
 
-            case STATE_ALIGN:
-                if (ch == '}' || ch == '{') {
-                    --next;
-                } else if (next < term) {
-                    switch (*next) {
-                    case '<':
-                    case '>':
-                    case '=':
-                    case '^':
-                        flags.fill = ch;
-                        flags.align = *next++;
-                        state = STATE_SIGN;
-                        break;
-                    default:
-                        switch (ch) {
-                        case '<':
-                        case '>':
-                        case '=':
-                        case '^':
-                            flags.align = ch;
-                            break;
-                        default:
-                            --next;
-                            break;
-                        }
-                    }
+            case STATE_FLAGS:
+                if (!formatStart) {
+                    formatStart = ptr;
                 }
-                state = STATE_SIGN;
-                break;
 
-            case STATE_SIGN:
-                switch (ch) {
-                case '+':
-                case '-':
-                case ' ':
-                    flags.sign = ch;
-                    break;
-                default:
+                if (ch == '}') {
+                    state = STATE_CLOSER;
                     --next;
-                    break;
                 }
-                state = STATE_ALTERNATE;
-                break;
 
-            case STATE_ALTERNATE:
-                if (ch == '#') {
-                    flags.alternate = true;
-                } else {
-                    --next;
-                }
-                state = STATE_WIDTH;
-                break;
-
-            case STATE_WIDTH:
-                if (ch >= '0' && ch <= '9') {
-                    if (flags.width < 0) {
-                        if (ch == '0') {
-                            flags.fill = '0';
-                            flags.align = '=';
-                        }
-                        flags.width = 0;
-                    }
-                    flags.width = (flags.width * 10) + (ch - '0');
-                } else {
-                    state = STATE_PRECISION;
-                    --next;
-                }
-                break;
-
-            case STATE_PRECISION:
-                if (flags.precision < 0 && ch == '.') {
-                    flags.precision = 0;
-                } else if (flags.precision >= 0 && ch >= '0' && ch <= '9') {
-                    flags.precision = (flags.precision * 10) + (ch - '0');
-                } else {
-                    state = STATE_TYPE;
-                    --next;
-                }
-                break;
-
-            case STATE_TYPE:
-                switch (ch) {
-                case 'b':
-                case 'c':
-                case 'd':
-                case 'e':
-                case 'E':
-                case 'f':
-                case 'F':
-                case 'g':
-                case 'G':
-                case 'n':
-                case 'o':
-                case 's':
-                case 'x':
-                case 'X':
-                case '%':
-                    flags.type = ch;
-                    break;
-                default:
-                    --next;
-                    break;
-                }
-                state = STATE_CLOSER;
                 break;
 
             case STATE_CLOSER:
-                // if we get here without a valid closer, or an escaped opener,
-                // the format is bogus and we'll ignore it.
-                if (ch == '}' && format_index(output, flags, index, std::forward<Args>(args)...)) {
-                    start = next;
+                if (ch == '}') {
+                    StringView format = formatStart
+                        ? StringView(formatStart, int32_t(ptr - formatStart))
+                        : StringView();
+
+                    if (format_index(output, format, index, std::forward<Args>(args)...)) {
+                        start = next;
+                    }
                 }
                 state = STATE_OPENER;
                 break;
