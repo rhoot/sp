@@ -13,6 +13,7 @@
 #include <cstdio> // printf, FILE, fwrite, fprintf
 #include <cstring> // std::memcpy
 #include <algorithm> // std::min, std::max
+#include <limits> // std::numeric_limits
 #include <utility> // std::forward
 
 ///
@@ -278,6 +279,122 @@ namespace sp {
     bool format_value(Output& output, const FormatFlags& flags, int32_t value)
     {
         return format_value(output, flags, int64_t(value));
+    }
+
+    template <class F>
+    bool format_float(Output& output, const FormatFlags& flags, F value)
+    {
+        // I *really* have no interest in serializing floats/doubles... so
+        // let's not. Instead, let's build a format string for snprintf to do
+        // the heavy work, and we'll just do alignment and stuff.
+        const char* suffix = "";
+        int32_t precision;
+        char type;
+
+        switch (flags.type) {
+        case 'f':
+        case 'F':
+        case 'e':
+        case 'E':
+            precision = flags.precision >= 0 ? flags.precision : 6;
+            type = flags.type;
+            break;
+        case 'g':
+        case 'G':
+            precision = (flags.precision != 0)
+                ? (flags.precision > 0 ? flags.precision : 6)
+                : 1;
+            type = flags.type;
+            break;
+        case '%':
+            precision = flags.precision >= 0 ? flags.precision : 6;
+            type = 'f';
+            value *= 100;
+            suffix = "%%";
+            break;
+        default:
+            precision = flags.precision >= 0 ? flags.precision : std::numeric_limits<F>::digits10;
+            type = 'g';
+            break;
+        }
+
+        char format[16];
+        snprintf(format, sizeof(format), "%%+.%d%c%s", precision, type, suffix);
+
+        // produce the formatted value
+        char buffer[512];
+        const int32_t ndigits = snprintf(buffer, sizeof(buffer), format, value) - 1;
+        const auto digits = buffer + 1;
+
+        // determine sign
+        char sign = 0;
+
+        if (value < 0) {
+            sign = '-';
+        } else if (flags.sign == '+' || flags.sign == ' ') {
+            sign = flags.sign;
+        }
+
+        // determine width
+        const int nchars = sign ? ndigits + 1 : ndigits;
+        const int32_t width = std::max(flags.width, nchars);
+
+        // determine alignment
+        int32_t leadSpace = 0;
+        int32_t tailSpace = 0;
+
+        switch (flags.align) {
+        case '^':
+            leadSpace = (width / 2) - ((nchars + 1) / 2); // nchars rounded up
+            tailSpace = ((width + 1) / 2) - (nchars / 2); // width rounded up
+            leadSpace += (width - nchars - 1) & 1; // if both are even or both are odd, we need to add one for correction
+            tailSpace -= (width - nchars - 1) & 1; // if both are even or both are odd, we need to remove one for correction
+            break;
+        case '<':
+            tailSpace = width - nchars;
+            break;
+        case '>':
+        default:
+            leadSpace = width - nchars;
+            break;
+        }
+
+        // print sign, if it should be before the padding
+        if (sign && flags.align == '=') {
+            output.write(sign);
+        }
+
+        // apply leading padding
+        const char fill = flags.fill ? flags.fill : ' ';
+
+        while (leadSpace--) {
+            output.write(fill);
+        }
+
+        // print sign, if it should be after the padding
+        if (sign && flags.align != '=') {
+            output.write(sign);
+        }
+
+        // write string
+        output.write(ndigits, digits);
+
+        // apply tailing padding
+        while (tailSpace--) {
+            output.write(fill);
+        }
+
+        return true;
+    }
+
+    bool format_value(Output& output, const FormatFlags& flags, double value)
+    {
+        return format_float(output, flags, value);
+    }
+
+    bool format_value(Output& output, const FormatFlags& flags, float value)
+    {
+        return format_float(output, flags, value);
     }
 
     bool format_value(Output& output, const FormatFlags& flags, const char str[])

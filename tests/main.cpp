@@ -12,6 +12,9 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
+#include <cfloat> // DBL_MAX
+#include <cmath> // NAN, INFINITY
+
 #include "../include/sp.hpp"
 
 TEST_CASE("Output with a string buffer")
@@ -65,8 +68,8 @@ TEST_CASE("Output with a string buffer")
         buffer[0] = 0;                                                                   \
         const auto expectedLen = int32_t(std::strlen(expected));                         \
         const auto actualLen = sp::format(buffer, 10 * 1024 * 1024, fmt, ##__VA_ARGS__); \
-        REQUIRE(expectedLen == actualLen);                                               \
         REQUIRE(std::strcmp(expected, buffer) == 0);                                     \
+        REQUIRE(expectedLen == actualLen);                                               \
         std::free(buffer);                                                               \
         break;                                                                           \
     }
@@ -111,6 +114,39 @@ TEST_CASE("Integer formats")
     TEST_FORMAT("+  177", "{:=+6o}", INT8_MAX);
     TEST_FORMAT(">> 18446744073709551615", "{:>> 23}", UINT64_MAX);
     TEST_FORMAT("0x7fffffffffffffff", "{:#x}", INT64_MAX);
+}
+
+TEST_CASE("Float formats")
+{
+    TEST_FORMAT("1", "{}", 1.0);
+    TEST_FORMAT("1.5", "{}", 1.5f);
+    TEST_FORMAT("1.79769313486232e+308", "{}", DBL_MAX);
+    TEST_FORMAT("1.17549e-38", "{}", FLT_MIN);
+    TEST_FORMAT("-3.40282e+38", "{}", -FLT_MAX);
+
+    TEST_FORMAT(" 1.000000e+00", "{: e}", 1.0f);
+    TEST_FORMAT("-1.000000e+00", "{:e}", -1.0f);
+    TEST_FORMAT("1.234568E+05", "{:E}", 123456.789);
+    TEST_FORMAT("5.12E+02", "{:.2E}", 512.1024);
+    TEST_FORMAT("3.251923299534e+01", "{:.12e}", 32.5192329953432345);
+
+    TEST_FORMAT("1.000000", "{:f}", 1.0f);
+    TEST_FORMAT("-1.000000", "{:f}", -1.0f);
+    TEST_FORMAT("+1.234568", "{:+f}", 1.23456789f);
+    TEST_FORMAT("3.1416", "{:.4f}", 3.14159265f);
+    TEST_FORMAT("1.57079633", "{:.8f}", 1.5707963267948966192);
+
+    TEST_FORMAT("1", "{:g}", 1.0);
+    TEST_FORMAT("-52", "{:g}", -52.0f);
+    TEST_FORMAT("3.14", "{:G}", 3.14);
+    TEST_FORMAT("+3.142", "{:+.4g}", 3.14159265);
+    TEST_FORMAT("1.23457e+19", "{:.6g}", 12345678901234567890.0);
+
+    TEST_FORMAT("   12", "{:5g}", 12.0f);
+    TEST_FORMAT("42.0101  ", "{:<9.6g}", 42.0101);
+    TEST_FORMAT("xxx32.007", "{:x>9.3f}", 32.00723f);
+    TEST_FORMAT("__1__", "{:_^5g}", 1.0f);
+    TEST_FORMAT("??2???", "{:?^6g}", 2.0f);
 }
 
 TEST_CASE("String formats")
