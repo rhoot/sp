@@ -198,12 +198,12 @@ namespace sp {
         char type = 0;
     };
 
-    bool format_value(Output&, const FormatFlags&, char32_t)
+    inline bool format_value(Output&, const FormatFlags&, char32_t)
     {
         return false;
     }
 
-    bool format_int(Output& output, const FormatFlags& flags, bool isNegative, uint64_t value)
+    inline bool format_int(Output& output, const FormatFlags& flags, bool isNegative, uint64_t value)
     {
         if (flags.type == 'c') {
             return !isNegative && format_value(output, flags, char32_t(value));
@@ -326,12 +326,12 @@ namespace sp {
         return true;
     }
 
-    bool format_value(Output& output, const FormatFlags& flags, uint64_t value)
+    inline bool format_value(Output& output, const FormatFlags& flags, uint64_t value)
     {
         return format_int(output, flags, false, value);
     }
 
-    bool format_value(Output& output, const FormatFlags& flags, int64_t value)
+    inline bool format_value(Output& output, const FormatFlags& flags, int64_t value)
     {
         // negating INT64_MIN is undefined behavior; the result is out of range of
         // a signed 64-bit int
@@ -343,12 +343,12 @@ namespace sp {
         }
     }
 
-    bool format_value(Output& output, const FormatFlags& flags, uint32_t value)
+    inline bool format_value(Output& output, const FormatFlags& flags, uint32_t value)
     {
         return format_value(output, flags, uint64_t(value));
     }
 
-    bool format_value(Output& output, const FormatFlags& flags, int32_t value)
+    inline bool format_value(Output& output, const FormatFlags& flags, int32_t value)
     {
         return format_value(output, flags, int64_t(value));
     }
@@ -459,17 +459,17 @@ namespace sp {
         return true;
     }
 
-    bool format_value(Output& output, const FormatFlags& flags, double value)
+    inline bool format_value(Output& output, const FormatFlags& flags, double value)
     {
         return format_float(output, flags, value);
     }
 
-    bool format_value(Output& output, const FormatFlags& flags, float value)
+    inline bool format_value(Output& output, const FormatFlags& flags, float value)
     {
         return format_float(output, flags, value);
     }
 
-    bool format_value(Output& output, const FormatFlags& flags, const StringView& str)
+    inline bool format_value(Output& output, const FormatFlags& flags, const StringView& str)
     {
         // determine the amount of characters to write
         auto nchars = str.length;
@@ -522,12 +522,12 @@ namespace sp {
     struct DummyArg {
     };
 
-    bool format_value(Output&, const FormatFlags&, const DummyArg&)
+    inline bool format_value(Output&, const FormatFlags&, const DummyArg&)
     {
         return false;
     }
 
-    bool format_index(Output&, const FormatFlags&, int32_t)
+    inline bool format_index(Output&, const FormatFlags&, int32_t)
     {
         return false;
     }
