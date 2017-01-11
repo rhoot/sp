@@ -42,20 +42,29 @@ namespace sp {
         int32_t m_length = 0;
     };
 
-    template <class... Args>
-    int32_t print(const char fmt[], Args&&... args);
+    struct StringView {
+        const char* const str = nullptr;
+        const int32_t length = 0;
+
+        StringView();
+        StringView(const char str[]);
+        StringView(const char str[], int32_t length);
+    };
 
     template <class... Args>
-    int32_t format(Output& output, const char fmt[], Args&&... args);
+    int32_t print(const StringView& fmt, Args&&... args);
 
     template <class... Args>
-    int32_t format(FILE* file, const char fmt[], Args&&... args);
+    int32_t format(Output& output, const StringView& fmt, Args&&... args);
 
     template <class... Args>
-    int32_t format(char buffer[], size_t size, const char fmt[], Args&&... args);
+    int32_t format(FILE* file, const StringView& fmt, Args&&... args);
+
+    template <class... Args>
+    int32_t format(char buffer[], size_t size, const StringView& fmt, Args&&... args);
 
     template <size_t N, class... Args>
-    int32_t format(char (&buffer)[N], const char fmt[], Args&&... args);
+    int32_t format(char (&buffer)[N], const StringView& fmt, Args&&... args);
 
 } // namespace sp
 
@@ -114,6 +123,20 @@ namespace sp {
                 }
             }
         }
+    }
+
+    inline StringView::StringView() {}
+
+    inline StringView::StringView(const char str[])
+        : str(str)
+        , length(int32_t(std::strlen(str)))
+    {
+    }
+
+    inline StringView::StringView(const char str[], int32_t length)
+        : str(str)
+        , length(length)
+    {
     }
 
     struct FormatFlags {
@@ -397,10 +420,10 @@ namespace sp {
         return format_float(output, flags, value);
     }
 
-    bool format_value(Output& output, const FormatFlags& flags, const char str[])
+    bool format_value(Output& output, const FormatFlags& flags, const StringView& str)
     {
         // determine the amount of characters to write
-        auto nchars = int32_t(strlen(str));
+        auto nchars = str.length;
 
         if (flags.precision >= 0) {
             nchars = std::min(flags.precision, nchars);
@@ -437,7 +460,7 @@ namespace sp {
         }
 
         // write string
-        output.write(nchars, str);
+        output.write(nchars, str.str);
 
         // apply tailing padding
         while (tailSpace--) {
@@ -471,7 +494,7 @@ namespace sp {
     }
 
     template <class... Args>
-    int32_t format(Output& output, const char fmt[], Args&&... args)
+    int32_t format(Output& output, const StringView& fmt, Args&&... args)
     {
         enum State {
             STATE_OPENER,
@@ -488,14 +511,15 @@ namespace sp {
 
         auto before = output.result();
         auto state = STATE_OPENER;
-        auto next = fmt;
-        auto start = fmt;
+        auto next = fmt.str;
+        auto start = fmt.str;
+        auto term = fmt.str + fmt.length;
 
         FormatFlags flags;
         auto prev = -1;
         auto index = -1;
 
-        while (*next) {
+        while (next < term) {
             const auto ptr = next++;
             const auto ch = *ptr;
 
@@ -503,17 +527,20 @@ namespace sp {
             case STATE_OPENER:
                 if (ch == '{') {
                     output.write(int32_t(ptr - start), start);
-                    if (*next != '{') {
-                        index = -1;
-                        start = ptr;
-                        flags = FormatFlags();
-                        state = STATE_INDEX;
-                    } else {
-                        start = next++;
+
+                    if (next < term) {
+                        if (*next != '{') {
+                            index = -1;
+                            start = ptr;
+                            flags = FormatFlags();
+                            state = STATE_INDEX;
+                        } else {
+                            start = next++;
+                        }
                     }
                 } else if (ch == '}') {
                     output.write(int32_t(next - start), start);
-                    if (*next == '}') {
+                    if (next < term && *next == '}') {
                         ++next;
                     }
                     start = next;
@@ -547,7 +574,7 @@ namespace sp {
             case STATE_ALIGN:
                 if (ch == '}' || ch == '{') {
                     --next;
-                } else {
+                } else if (next < term) {
                     switch (*next) {
                     case '<':
                     case '>':
@@ -662,8 +689,8 @@ namespace sp {
         }
 
         // Print remaining data
-        if (start != next) {
-            output.write(int32_t(next - start), start);
+        if (start != term) {
+            output.write(int32_t(term - start), start);
         }
 
         auto after = output.result();
@@ -671,7 +698,7 @@ namespace sp {
     }
 
     template <class... Args>
-    int32_t print(const char fmt[], Args&&... args)
+    int32_t print(const StringView& fmt, Args&&... args)
     {
         Output output;
         format(output, fmt, std::forward<Args>(args)...);
@@ -679,7 +706,7 @@ namespace sp {
     }
 
     template <class... Args>
-    int32_t format(FILE* file, const char fmt[], Args&&... args)
+    int32_t format(FILE* file, const StringView& fmt, Args&&... args)
     {
         Output output(file);
         format(output, fmt, std::forward<Args>(args)...);
@@ -687,7 +714,7 @@ namespace sp {
     }
 
     template <class... Args>
-    int32_t format(char buffer[], size_t size, const char fmt[], Args&&... args)
+    int32_t format(char buffer[], size_t size, const StringView& fmt, Args&&... args)
     {
         Output output(buffer, size);
         format(output, fmt, std::forward<Args>(args)...);
@@ -695,7 +722,7 @@ namespace sp {
     }
 
     template <size_t N, class... Args>
-    int32_t format(char (&buffer)[N], const char fmt[], Args&&... args)
+    int32_t format(char (&buffer)[N], const StringView& fmt, Args&&... args)
     {
         Output output(buffer, N);
         format(output, fmt, std::forward<Args>(args)...);
