@@ -297,16 +297,29 @@ namespace sp {
                 }
                 break;
 
-            case STATE_PRECISION:
-                if (flags->precision < 0 && ch == '.') {
-                    flags->precision = 0;
-                } else if (flags->precision >= 0 && ch >= '0' && ch <= '9') {
-                    flags->precision = (flags->precision * 10) + (ch - '0');
-                } else {
-                    state = STATE_TYPE;
-                    --next;
+            case STATE_PRECISION: {
+                const auto isDigit = [] (char ch) {
+                    return ch >= '0' && ch <= '9';
+                };
+
+                if (ch == '.') {
+                    const char nextCh = (next < term) ? *next : 0;
+
+                    if (flags->precision < 0 && isDigit(nextCh)) {
+                        flags->precision = 0;
+                        continue;
+                    }
+                } else if (isDigit(ch)) {
+                    if (flags->precision >= 0) {
+                        flags->precision = (flags->precision * 10) + (ch - '0');
+                        continue;
+                    }
                 }
+
+                state = STATE_TYPE;
+                --next;
                 break;
+            }
 
             case STATE_TYPE:
                 switch (ch) {

@@ -69,13 +69,14 @@ format and this library's format are as such:
 
 * `!conversions` are not supported.
 
-  * `{0!s}` is an invalid format. As is `{0!a}`.
+  * `{0!s}` is an invalid replacement field, and results in `{0!s}`. As is
+    `{0!a}`, which results in `{0!a}`.
 
 * Only numerical or omitted `field_name`s are supported.
 
   * `{} {2}` is a valid replacement field.
-  * `{foo.bar}` is an invalid replacement field.
-  * `{0[0]}` is an invalid replacement field.
+  * `{foo.bar}` is an invalid replacement field, and results in `{foo.bar}`.
+  * `{0[0]}` is an invalid replacement field, and results in `{0[0]}`.
 
 * Mixing of indexed and non-indexed replacement fields is supported. When a
   non-indexed replacement field is encountered, its index is determined by
@@ -87,15 +88,18 @@ format and this library's format are as such:
 
 * Replacement fields may not be used within another replacement field.
 
-  * `{0:{1}}` is an invalid replacement field.
+  * `{0:{1}}` is an invalid replacement field, and results in `{0:{1}` as the
+    `}}` is treated as an escaped curly brace.
 
 * `grouping_option`s are not supported.
 
-  * `{:_}` is an invalid replacement field. As is `{:,}`.
+  * `{:_}` is an invalid replacement field, and results in `{:_}`. As is
+    `{:,}`, which results in `{:,}`.
 
 * Specifying `c` or `n` as `type` is unsupported.
 
-  * `{:c}` is an invalid replacement field. As is `{:n}`.
+  * `{:c}` is an invalid replacement field, and results in `{:c}`. As is
+    `{:n}`, which results in `{:n}`.
 
 * Omitting the `type` for floating point types causes it to fall back to `g`
   with a different default precision. The special case with getting at least

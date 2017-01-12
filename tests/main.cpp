@@ -108,6 +108,33 @@ TEST_CASE("Custom format")
     TEST_FORMAT("<empty>}", "{:}}", Foo{});
 }
 
+TEST_CASE("Readme formats")
+{
+    // Examples
+    TEST_FORMAT("Hello, World!\n", "Hello, {}!\n", "World");
+    TEST_FORMAT("+0000512", "{:+08}", 512);
+    TEST_FORMAT("name=John,height=1.80,employed=true", "name={2},height={0:.2f},employed={1}", 1.8019f, true, "John");
+
+    // Format string
+    TEST_FORMAT("{:", "{:", 1);
+    TEST_FORMAT("{:.}", "{:.}", 1);
+    TEST_FORMAT("foo", "{:=}", "foo");
+    TEST_FORMAT("{0!s}", "{0!s}", 1);
+    TEST_FORMAT("{0!a}", "{0!a}", 1);
+    TEST_FORMAT("0 2", "{} {2}", 0, 1, 2);
+    TEST_FORMAT("{foo.bar}", "{foo.bar}", 1);
+    TEST_FORMAT("{0[0]}", "{0[0]}", 1);
+    TEST_FORMAT("0 1 2", "{} {} {}", 0, 1, 2);
+    TEST_FORMAT("0 1 2", "{0} {1} {2}", 0, 1, 2);
+    TEST_FORMAT("0 1 1 2 1", "{} {} {1} {} {1}", 0, 1, 2);
+    TEST_FORMAT("0 1 1 2 1", "{0} {1} {1} {2} {1}", 0, 1, 2);
+    TEST_FORMAT("{0:{1}", "{0:{1}}", 1);
+    TEST_FORMAT("{:_}", "{:_}", 1);
+    TEST_FORMAT("{:,}", "{:,}", 1);
+    TEST_FORMAT("{:c}", "{:c}", 'f');
+    TEST_FORMAT("314159265", "{}", 314159265.0);
+}
+
 TEST_CASE("Integer formats")
 {
     TEST_FORMAT("true", "{}", true);
@@ -143,7 +170,6 @@ TEST_CASE("Integer formats")
     TEST_FORMAT(" 32", "{: 3}", 32);
     TEST_FORMAT("  75", "{: 4}", 75);
     TEST_FORMAT("   4", "{:4}", 4);
-    TEST_FORMAT("+00000512", "{:+08}", 512);
     TEST_FORMAT("300", "{:0<3}", 3);
     TEST_FORMAT(" 2  ", "{:^4}", 2);
     TEST_FORMAT("  8  ", "{:^5}", 8);
