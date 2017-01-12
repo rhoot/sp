@@ -115,6 +115,25 @@ namespace sp {
     template <size_t N, class... Args>
     int32_t format(char (&buffer)[N], const StringView& fmt, Args&&... args);
 
+    /// Provided format functions.
+    bool format_value(Output& output, const StringView& fmt, float value);
+    bool format_value(Output& output, const StringView& fmt, double value);
+    bool format_value(Output& output, const StringView& fmt, char value);
+    bool format_value(Output& output, const StringView& fmt, signed char value);
+    bool format_value(Output& output, const StringView& fmt, unsigned char value);
+    bool format_value(Output& output, const StringView& fmt, short value);
+    bool format_value(Output& output, const StringView& fmt, unsigned short value);
+    bool format_value(Output& output, const StringView& fmt, int value);
+    bool format_value(Output& output, const StringView& fmt, unsigned value);
+    bool format_value(Output& output, const StringView& fmt, long value);
+    bool format_value(Output& output, const StringView& fmt, unsigned long value);
+    bool format_value(Output& output, const StringView& fmt, long long value);
+    bool format_value(Output& output, const StringView& fmt, unsigned long long value);
+    bool format_value(Output& output, const StringView& fmt, const char value[]);
+
+    template <class T>
+    bool format_value(Output& output, const StringView& fmt, T* value);
+
 } // namespace sp
 
 ///
@@ -323,14 +342,8 @@ namespace sp {
         return true;
     }
 
-    inline bool format_int(Output& output, const StringView& format, bool isNegative, uint64_t value)
+    inline bool format_int(Output& output, const FormatFlags& flags, bool isNegative, uint64_t value)
     {
-        FormatFlags flags;
-
-        if (!parse_format(format, &flags)) {
-            return false;
-        }
-
         // determine base
         int32_t base = 10;
 
@@ -448,33 +461,6 @@ namespace sp {
         return true;
     }
 
-    inline bool format_value(Output& output, const StringView& format, uint64_t value)
-    {
-        return format_int(output, format, false, value);
-    }
-
-    inline bool format_value(Output& output, const StringView& format, int64_t value)
-    {
-        // negating INT64_MIN is undefined behavior; the result is out of range of
-        // a signed 64-bit int
-        if (value != INT64_MIN) {
-            const auto abs = (value < 0) ? uint64_t(-value) : uint64_t(value);
-            return format_int(output, format, value < 0, abs);
-        } else {
-            return format_int(output, format, true, uint64_t(value));
-        }
-    }
-
-    inline bool format_value(Output& output, const StringView& format, uint32_t value)
-    {
-        return format_value(output, format, uint64_t(value));
-    }
-
-    inline bool format_value(Output& output, const StringView& format, int32_t value)
-    {
-        return format_value(output, format, int64_t(value));
-    }
-
     template <class F>
     bool format_float(Output& output, const StringView& format, F value)
     {
@@ -587,17 +573,7 @@ namespace sp {
         return true;
     }
 
-    inline bool format_value(Output& output, const StringView& format, double value)
-    {
-        return format_float(output, format, value);
-    }
-
-    inline bool format_value(Output& output, const StringView& format, float value)
-    {
-        return format_float(output, format, value);
-    }
-
-    inline bool format_value(Output& output, const StringView& format, const StringView& str)
+    inline bool format_string(Output& output, const StringView& format, const StringView& str)
     {
         FormatFlags flags;
 
@@ -674,6 +650,14 @@ namespace sp {
         } else {
             return format_index(output, format, index - 1, std::forward<Rest>(rest)...);
         }
+    }
+
+    template <class... Args>
+    int32_t print(const StringView& fmt, Args&&... args)
+    {
+        Output output;
+        format(output, fmt, std::forward<Args>(args)...);
+        return output.result();
     }
 
     template <class... Args>
@@ -786,14 +770,6 @@ namespace sp {
     }
 
     template <class... Args>
-    int32_t print(const StringView& fmt, Args&&... args)
-    {
-        Output output;
-        format(output, fmt, std::forward<Args>(args)...);
-        return output.result();
-    }
-
-    template <class... Args>
     int32_t format(FILE* file, const StringView& fmt, Args&&... args)
     {
         Output output(file);
@@ -815,6 +791,106 @@ namespace sp {
         Output output(buffer, N);
         format(output, fmt, std::forward<Args>(args)...);
         return output.result();
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, float value)
+    {
+        return format_float(output, fmt, value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, double value)
+    {
+        return format_float(output, fmt, value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, char value)
+    {
+        return std::numeric_limits<char>::is_signed
+            ? format_value(output, fmt, (long long)value)
+            : format_value(output, fmt, (unsigned long long)value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, signed char value)
+    {
+        return format_value(output, fmt, (long long)value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, unsigned char value)
+    {
+        return format_value(output, fmt, (unsigned long long)value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, short value)
+    {
+        return format_value(output, fmt, (long long)value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, unsigned short value)
+    {
+        return format_value(output, fmt, (unsigned long long)value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, int value)
+    {
+        return format_value(output, fmt, (long long)value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, unsigned value)
+    {
+        return format_value(output, fmt, (unsigned long long)value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, long value)
+    {
+        return format_value(output, fmt, (long long)value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, unsigned long value)
+    {
+        return format_value(output, fmt, (unsigned long long)value);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, long long value)
+    {
+        static_assert(sizeof(value) == sizeof(uint64_t), "invalid cast on negation");
+
+        const auto abs = (value >= 0 || value == std::numeric_limits<long long>::min())
+            ? uint64_t(value)
+            : uint64_t(-value);
+
+        FormatFlags flags;
+
+        return parse_format(fmt, &flags)
+            && format_int(output, flags, value < 0, abs);
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, unsigned long long value)
+    {
+        FormatFlags flags;
+
+        return parse_format(fmt, &flags)
+            && format_int(output, flags, false, uint64_t(value));
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, const char value[])
+    {
+        return format_string(output, fmt, value);
+    }
+
+    template <class T>
+    bool format_value(Output& output, const StringView& fmt, T* value)
+    {
+        FormatFlags flags;
+
+        if (parse_format(fmt, &flags)) {
+            if (!flags.type) {
+                flags.type = 'x';
+            }
+
+            return format_int(output, flags, false, uint64_t(value));
+        }
+
+        return false;
     }
 
 } // namespace sp

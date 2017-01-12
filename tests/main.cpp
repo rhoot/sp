@@ -110,6 +110,29 @@ TEST_CASE("Custom format")
 
 TEST_CASE("Integer formats")
 {
+    TEST_FORMAT("1", "{}", (char)1);
+    TEST_FORMAT("1", "{}", (signed char)1);
+    TEST_FORMAT("1", "{}", (unsigned char)1);
+    TEST_FORMAT("1", "{}", (short)1);
+    TEST_FORMAT("1", "{}", (unsigned short)1);
+    TEST_FORMAT("1", "{}", (int)1);
+    TEST_FORMAT("1", "{}", (unsigned)1);
+    TEST_FORMAT("1", "{}", (long)1);
+    TEST_FORMAT("1", "{}", (unsigned long)1);
+    TEST_FORMAT("1", "{}", (long long)1);
+    TEST_FORMAT("1", "{}", (unsigned long long)1);
+
+    TEST_FORMAT("1", "{}", int8_t(1));
+    TEST_FORMAT("1", "{}", uint8_t(1));
+    TEST_FORMAT("1", "{}", int16_t(1));
+    TEST_FORMAT("1", "{}", uint16_t(1));
+    TEST_FORMAT("1", "{}", int32_t(1));
+    TEST_FORMAT("1", "{}", uint32_t(1));
+    TEST_FORMAT("1", "{}", int64_t(1));
+    TEST_FORMAT("1", "{}", uint64_t(1));
+
+    TEST_FORMAT("7ff00000", "{}", (void *)0x7ff00000);
+
     TEST_FORMAT("42", "{}", 42);
     TEST_FORMAT("-15", "{0}", -15);
     TEST_FORMAT("+96", "{:+}", 96);
