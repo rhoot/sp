@@ -6,7 +6,8 @@ python-style format strings.
 
 Features:
 
-* Safe. It's not possible to use the wrong format specifier for a given type.
+* Type safe. It's not possible to use the wrong format specifier for a given
+  type.
   Data types are detected, not specified.
 * Light-weight. The entire implementation is in one header, with no third party
   dependencies.
