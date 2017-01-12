@@ -10,7 +10,7 @@
 // with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 
 #include <cstdint> // int32_t, uint64_t
-#include <cstdio> // printf, FILE, fwrite, fprintf
+#include <cstdio> // std::snprintf, std::FILE, std::fwrite
 #include <cstring> // std::memcpy
 #include <algorithm> // std::min, std::max
 #include <limits> // std::numeric_limits
@@ -33,7 +33,7 @@ namespace sp {
         Output(char buffer[], size_t size);
 
         /// Construct an output that writes into the provided FILE stream.
-        explicit Output(FILE* stream);
+        explicit Output(std::FILE* stream);
 
         /// Return the result of the print operation.
         ///
@@ -59,7 +59,7 @@ namespace sp {
         Output(const Output&) = delete;
         Output& operator=(const Output&) = delete;
 
-        FILE* m_stream = nullptr;
+        std::FILE* m_stream = nullptr;
         char* m_buffer = nullptr;
         int32_t m_size = 0;
         int32_t m_length = 0;
@@ -97,7 +97,7 @@ namespace sp {
     /// provided format arguments. Return the amount of `char`s written, or
     /// `-1` in case of an error.
     template <class... Args>
-    int32_t format(FILE* file, const StringView& fmt, Args&&... args);
+    int32_t format(std::FILE* file, const StringView& fmt, Args&&... args);
 
     /// Print to the provided buffer of the provided size, using the provided
     /// format string with the provided format arguments. Return the amount of
@@ -154,7 +154,7 @@ namespace sp {
     {
     }
 
-    inline Output::Output(FILE* stream)
+    inline Output::Output(std::FILE* stream)
         : m_stream(stream)
     {
     }
@@ -770,7 +770,7 @@ namespace sp {
     }
 
     template <class... Args>
-    int32_t format(FILE* file, const StringView& fmt, Args&&... args)
+    int32_t format(std::FILE* file, const StringView& fmt, Args&&... args)
     {
         Output output(file);
         format(output, fmt, std::forward<Args>(args)...);
