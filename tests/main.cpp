@@ -143,6 +143,7 @@ TEST_CASE("Integer formats")
     TEST_FORMAT(" 32", "{: 3}", 32);
     TEST_FORMAT("  75", "{: 4}", 75);
     TEST_FORMAT("   4", "{:4}", 4);
+    TEST_FORMAT("+00000512", "{:+08}", 512);
     TEST_FORMAT("300", "{:0<3}", 3);
     TEST_FORMAT(" 2  ", "{:^4}", 2);
     TEST_FORMAT("  8  ", "{:^5}", 8);

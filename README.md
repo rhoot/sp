@@ -32,7 +32,7 @@ sp::print("Hello, {}!\n", "World");
 ```cpp
 char buffer[16];
 
-// Format `+00000512` into a char buffer
+// Format `+0000512` into a char buffer
 sp::format(buffer, sizeof(buffer), "{:+08}", 512);
 
 // Alternate way, since this is a fixed-size array
