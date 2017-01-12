@@ -116,6 +116,7 @@ namespace sp {
     int32_t format(char (&buffer)[N], const StringView& fmt, Args&&... args);
 
     /// Provided format functions.
+    bool format_value(Output& output, const StringView& fmt, bool value);
     bool format_value(Output& output, const StringView& fmt, float value);
     bool format_value(Output& output, const StringView& fmt, double value);
     bool format_value(Output& output, const StringView& fmt, char value);
@@ -791,6 +792,11 @@ namespace sp {
         Output output(buffer, N);
         format(output, fmt, std::forward<Args>(args)...);
         return output.result();
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, bool value)
+    {
+        return format_string(output, fmt, value ? "true" : "false");
     }
 
     inline bool format_value(Output& output, const StringView& fmt, float value)

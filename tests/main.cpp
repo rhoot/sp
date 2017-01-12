@@ -110,6 +110,9 @@ TEST_CASE("Custom format")
 
 TEST_CASE("Integer formats")
 {
+    TEST_FORMAT("true", "{}", true);
+    TEST_FORMAT("false", "{}", false);
+
     TEST_FORMAT("1", "{}", (char)1);
     TEST_FORMAT("1", "{}", (signed char)1);
     TEST_FORMAT("1", "{}", (unsigned char)1);
