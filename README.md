@@ -122,17 +122,17 @@ namespace, or the same namespace as the type it is formatting (`T` above).
 
 ### Arguments
 
-<dl>
-    <dt>output</dt>
-    <dd>Output to write the resulting formatted string into.</dd>
-    <dt>format</dt>
-    <dd>The raw format specifier flags, as they appeared in the replacement
-        field. If `{:foo}` was used to format your type, `"foo"` will be passed
-        as this `format` argument. Please note that these format specifiers are
-        not null-terminated.</dd>
-    <dt>value</dt>
-    <dd>The value to format. May be passed as `const T&` to avoid copying.</dd>
-</dl>
+#### output
+Output to write the resulting formatted string into.
+
+#### format
+The raw format specifier flags, as they appeared in the replacement field. If
+`{:foo}` was used to format your type, `"foo"` will be passed as this `format`
+argument. Please note that these format specifiers are not null-terminated.
+
+#### value
+The value to format. May be passed as `const T&` to avoid copying.
+
 
 [CC0]:      https://creativecommons.org/publicdomain/zero/1.0/              "CC0"
 [pyformat]: https://docs.python.org/3/library/string.html#formatstrings     "Python 3 format string"
