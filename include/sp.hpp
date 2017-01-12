@@ -318,7 +318,6 @@ namespace sp {
                 case 'F':
                 case 'g':
                 case 'G':
-                case 'n':
                 case 'o':
                 case 's':
                 case 'x':

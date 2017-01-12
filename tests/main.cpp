@@ -10,9 +10,9 @@
 // with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 
 #define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include "catch/catch.hpp"
 
-#include <cfloat> // DBL_MAX
+#include <cfloat> // DBL_MAX, FLT_MIN, FLT_MAX
 #include <cmath> // NAN, INFINITY
 
 #include "../include/sp.hpp"
@@ -134,7 +134,7 @@ TEST_CASE("Integer formats")
     TEST_FORMAT("1", "{}", int64_t(1));
     TEST_FORMAT("1", "{}", uint64_t(1));
 
-    TEST_FORMAT("7ff00000", "{}", (void *)0x7ff00000);
+    TEST_FORMAT("7ff00000", "{}", (void*)0x7ff00000);
 
     TEST_FORMAT("42", "{}", 42);
     TEST_FORMAT("-15", "{0}", -15);
