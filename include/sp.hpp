@@ -754,7 +754,7 @@ namespace sp {
                     formatStart = ptr;
                 }
 
-                if (ch == '}') {
+                if (ch == '}' || ch == '{') {
                     state = STATE_CLOSER;
                     --next;
                 }

@@ -88,6 +88,26 @@ TEST_CASE("Unformatted")
     TEST_FORMAT("a}b", "a}}b");
 }
 
+struct Foo {
+};
+
+static bool format_value(sp::Output& output, const sp::StringView& format, const Foo&)
+{
+    if (!format.length) {
+        output.write(7, "<empty>");
+    } else {
+        output.write(format.length, format.ptr);
+    }
+    return true;
+}
+
+TEST_CASE("Custom format")
+{
+    TEST_FORMAT("<@:>f0\\", "{:<@:>f0\\}", Foo{});
+    TEST_FORMAT("{:{}", "{:{}}", Foo{});
+    TEST_FORMAT("<empty>}", "{:}}", Foo{});
+}
+
 TEST_CASE("Integer formats")
 {
     TEST_FORMAT("42", "{}", 42);
