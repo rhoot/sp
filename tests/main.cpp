@@ -11,6 +11,9 @@
 
 #include <cfloat> // DBL_MAX, FLT_MIN, FLT_MAX
 #include <cmath> // NAN, INFINITY
+#include <cstdio> // std::printf
+#include <cstdlib> // std::exit
+#include <string> // std::string
 
 #include "../include/sp.hpp"
 
