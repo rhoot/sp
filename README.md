@@ -13,11 +13,6 @@ Features:
   dependencies.
 * More flexible formatting than printf, less verbose than iostreams.
 
-**NOTE:** Please note that the contents of the `tests/catch` folder is *NOT*
-released under CC0, but is a third party test framework. If you make copies of
-these files, make sure you first refer to the license information in that same
-folder.
-
 Examples
 --------
 
