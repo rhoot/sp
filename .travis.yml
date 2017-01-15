@@ -1,0 +1,5 @@
+dist: trusty
+language: cpp
+os: linux
+script: make test
+sudo: false

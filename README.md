@@ -1,4 +1,4 @@
-sp
+sp [![Build Status](https://travis-ci.org/rhoot/sp.svg?branch=master)](https://travis-ci.org/rhoot/sp)
 ==
 
 Public domain ([CC0]) string formatting micro-library for C++, based on
