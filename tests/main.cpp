@@ -264,6 +264,7 @@ int main()
 
     TEST_CASE("String formats")
     {
+        TEST_FORMAT("", "{}", (const char *)nullptr);
         TEST_FORMAT("abc", "a{}c", "b");
         TEST_FORMAT("bar", "{}{}{}", "b", "a", "r");
         TEST_FORMAT("baz", "{2}{0}{}", "a", "z", "b");

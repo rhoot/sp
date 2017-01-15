@@ -200,7 +200,7 @@ namespace sp {
 
     inline StringView::StringView(const char str[])
         : ptr(str)
-        , length(int32_t(std::strlen(str)))
+        , length(str ? int32_t(std::strlen(str)) : 0)
     {
     }
 
