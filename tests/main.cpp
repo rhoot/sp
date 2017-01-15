@@ -131,8 +131,30 @@ TEST_CASE("Readme formats")
     TEST_FORMAT("{0:{1}", "{0:{1}}", 1);
     TEST_FORMAT("{:_}", "{:_}", 1);
     TEST_FORMAT("{:,}", "{:,}", 1);
-    TEST_FORMAT("{:c}", "{:c}", 'f');
+    TEST_FORMAT("{:n}", "{:n}", 1);
+    TEST_FORMAT("A", "{:c}", 65);
+    TEST_FORMAT("x", "{:#c}", 120);
+    TEST_FORMAT("(100)", "{:c}", 256);
+    TEST_FORMAT("(0xa0)", "{:#c}", 160);
+    TEST_FORMAT("(-0x5)", "{:#c}", -5);
     TEST_FORMAT("314159265", "{}", 314159265.0);
+}
+
+TEST_CASE("Char formats")
+{
+    TEST_FORMAT(" ", "{}", (char)32);
+    TEST_FORMAT(" ", "{}", (char16_t)32);
+    TEST_FORMAT(" ", "{}", (char32_t)32);
+    TEST_FORMAT("x", "{}", 'x');
+    TEST_FORMAT("A", "{:c}", 65);
+    TEST_FORMAT("(-41)", "{:c}", -65);
+    TEST_FORMAT("(-0x41)", "{:#c}", -65);
+    TEST_FORMAT("x  ", "{:3}", 'x');
+    TEST_FORMAT("  x", "{:>3}", 'x');
+    TEST_FORMAT("\x7f", "{:c}", 0x7f);
+    TEST_FORMAT("(80)", "{:c}", 0x80);
+    TEST_FORMAT("(+80)", "{:+c}", 0x80);
+    TEST_FORMAT("  (+80)  ", "{:^+9c}", 0x80);
 }
 
 TEST_CASE("Integer formats")
@@ -140,7 +162,6 @@ TEST_CASE("Integer formats")
     TEST_FORMAT("true", "{}", true);
     TEST_FORMAT("false", "{}", false);
 
-    TEST_FORMAT("1", "{}", (char)1);
     TEST_FORMAT("1", "{}", (signed char)1);
     TEST_FORMAT("1", "{}", (unsigned char)1);
     TEST_FORMAT("1", "{}", (short)1);

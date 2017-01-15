@@ -97,10 +97,21 @@ format and this library's format are as such:
   * `{:_}` is an invalid replacement field, and results in `{:_}`. As is
     `{:,}`, which results in `{:,}`.
 
-* Specifying `c` or `n` as `type` is unsupported.
+* Specifying `n` as `type` is unsupported.
 
-  * `{:c}` is an invalid replacement field, and results in `{:c}`. As is
-    `{:n}`, which results in `{:n}`.
+  * `{:n}` is an invalid replacement field, and results in `{:n}`.
+
+* `c` as `type` behaves slightly differently. Only characters between `0x00`
+  and `0x7f` (both inclusive) will be written as a single character. Any value
+  other than that is out of range for ASCII and should be generated using some
+  appropriate encoding aware library, and then printed as a string. These
+  values will instead be written as hex, wrapped in parenthesis.
+
+  * `{:c}` when called with `65` as the first argument results in `A`.
+  * `{:#c}` when called with `120` as the first argument results in `x`.
+  * `{:c}` when called with `256` as the first argument results in `(100)`.
+  * `{:#c}` when called with `160` as the first argument results in `(0xa0)`.
+  * `{:#c}` when called with `-5` as the first argument results in `(-0x5)`.
 
 * Omitting the `type` for floating point types causes it to fall back to `g`
   with a different default precision. The special case with getting at least

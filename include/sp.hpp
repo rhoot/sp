@@ -120,6 +120,8 @@ namespace sp {
     bool format_value(Output& output, const StringView& fmt, float value);
     bool format_value(Output& output, const StringView& fmt, double value);
     bool format_value(Output& output, const StringView& fmt, char value);
+    bool format_value(Output& output, const StringView& fmt, char16_t value);
+    bool format_value(Output& output, const StringView& fmt, char32_t value);
     bool format_value(Output& output, const StringView& fmt, signed char value);
     bool format_value(Output& output, const StringView& fmt, unsigned char value);
     bool format_value(Output& output, const StringView& fmt, short value);
@@ -298,7 +300,7 @@ namespace sp {
                 break;
 
             case STATE_PRECISION: {
-                const auto isDigit = [] (char ch) {
+                const auto isDigit = [](char ch) {
                     return ch >= '0' && ch <= '9';
                 };
 
@@ -325,6 +327,7 @@ namespace sp {
                 switch (ch) {
                 case 'b':
                 case 'd':
+                case 'c':
                 case 'e':
                 case 'E':
                 case 'f':
@@ -367,6 +370,7 @@ namespace sp {
         case 'o':
             base = 8;
             break;
+        case 'c':
         case 'x':
         case 'X':
             base = 16;
@@ -378,11 +382,24 @@ namespace sp {
         char buffer[66]; // max needed; 64-bit binary with alternate form
         char* digits = buffer + sizeof(buffer);
         int32_t ndigits = 0;
+        char type = flags.type;
 
-        {
+        const bool isChar = type == 'c';
+        const bool charAsHex = (value >= 0x80 || isNegative);
+
+        if (isChar) {
+            if (charAsHex) {
+                *(--digits) = ')';
+            } else {
+                *(--digits) = char(value);
+            }
+            ndigits = 1;
+        }
+
+        if (!isChar || charAsHex) {
             const auto digitchars = (flags.type == 'X')
-                ? "0123456789ABCDEF"
-                : "0123456789abcdef";
+                ? "0123456789ABCDEFX"
+                : "0123456789abcdefx";
 
             uint64_t v = value;
             do {
@@ -404,7 +421,7 @@ namespace sp {
                     ndigits += 2;
                     break;
                 case 16:
-                    *(--digits) = flags.type;
+                    *(--digits) = digitchars[16];
                     *(--digits) = '0';
                     ndigits += 2;
                     break;
@@ -419,6 +436,17 @@ namespace sp {
             sign = '-';
         } else if (flags.sign == '+' || flags.sign == ' ') {
             sign = flags.sign;
+        }
+
+        // finish up out-of-range chars
+        if (isChar && charAsHex) {
+            if (sign) {
+                *(--digits) = sign;
+                ++ndigits;
+                sign = 0;
+            }
+            *(--digits) = '(';
+            ++ndigits;
         }
 
         // determine spacing
@@ -823,9 +851,31 @@ namespace sp {
 
     inline bool format_value(Output& output, const StringView& fmt, char value)
     {
-        return std::numeric_limits<char>::is_signed
-            ? format_value(output, fmt, (long long)value)
-            : format_value(output, fmt, (unsigned long long)value);
+        return format_value(output, fmt, char32_t(value));
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, char16_t value)
+    {
+        return format_value(output, fmt, char32_t(value));
+    }
+
+    inline bool format_value(Output& output, const StringView& fmt, char32_t value)
+    {
+        FormatFlags flags;
+
+        if (parse_format(fmt, &flags)) {
+            if (!flags.type) {
+                flags.type = 'c';
+            }
+
+            if (!flags.align) {
+                flags.align = '<';
+            }
+
+            return format_int(output, flags, false, uint64_t(value));
+        }
+
+        return false;
     }
 
     inline bool format_value(Output& output, const StringView& fmt, signed char value)
