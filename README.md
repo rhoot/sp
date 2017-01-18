@@ -87,8 +87,8 @@ format and this library's format are as such:
   than that may result in badly formatted strings. When using non-indexed
   replacement fields, the index is shared with the parent format string.
 
-  * `{0:{1}}` when called with `1` as first argument and `3` as second
-    argument, results in `  1`.
+  * `{0:.>{1}}` when called with `1` as first argument and `3` as second
+    argument, results in `..1`.
   * `{:{}{}} {}` is the same as `{0:{1}{2}} {3}`.
 
 * `grouping_option`s are not supported.
