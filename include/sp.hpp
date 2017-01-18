@@ -67,8 +67,8 @@ namespace sp {
 
     /// View into a string.
     struct StringView {
-        const char* const ptr = nullptr; //< Pointer to the string.
-        const int32_t length = 0; //< Length of the string.
+        const char* ptr = nullptr; //< Pointer to the string.
+        int32_t length = 0; //< Length of the string.
 
         /// Construct an empty StringView.
         StringView();
@@ -702,7 +702,7 @@ namespace sp {
     }
 
     template <class... Args>
-    int32_t format(Output& output, const StringView& fmt, Args&&... args)
+    int32_t format(Output& output, const StringView& fmt, int32_t* prevIndex, Args&&... args)
     {
         enum State {
             STATE_OPENER,
@@ -719,8 +719,8 @@ namespace sp {
         auto term = fmt.ptr + fmt.length;
 
         const char* formatStart = nullptr;
-        auto prev = -1;
         auto index = -1;
+        auto opened = 0;
 
         while (next < term) {
             const auto ptr = next++;
@@ -757,9 +757,9 @@ namespace sp {
                         : (index * 10) + (ch - '0');
                 } else {
                     if (index < 0) {
-                        index = prev + 1;
+                        index = *prevIndex + 1;
                     }
-                    prev = index;
+                    *prevIndex = index;
                     state = STATE_MARKER;
                     --next;
                 }
@@ -779,9 +779,16 @@ namespace sp {
                     formatStart = ptr;
                 }
 
-                if (ch == '}' || ch == '{') {
-                    state = STATE_CLOSER;
-                    --next;
+                switch (ch) {
+                case '{':
+                    ++opened;
+                    break;
+                case '}':
+                    if (--opened < 0) {
+                        state = STATE_CLOSER;
+                        --next;
+                    }
+                    break;
                 }
 
                 break;
@@ -791,6 +798,15 @@ namespace sp {
                     StringView format = formatStart
                         ? StringView(formatStart, int32_t(ptr - formatStart))
                         : StringView();
+
+                    // handle nested format specifiers
+                    char buffer[64];
+
+                    if (opened < 0) {
+                        const auto fullLen = sp::format(buffer, format, prevIndex, std::forward<Args>(args)...);
+                        const auto realLen = std::min(size_t(fullLen), sizeof(buffer));
+                        format = StringView(buffer, int32_t(realLen));
+                    }
 
                     if (format_index(output, format, index, std::forward<Args>(args)...)) {
                         start = next;
@@ -808,6 +824,13 @@ namespace sp {
 
         auto after = output.result();
         return after < 0 ? after : (after - before);
+    }
+
+    template <class... Args>
+    int32_t format(Output& output, const StringView& fmt, Args&&... args)
+    {
+        int32_t prevIndex = -1;
+        return format(output, fmt, &prevIndex, std::forward<Args>(args)...);
     }
 
     template <class... Args>

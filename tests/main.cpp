@@ -10,14 +10,20 @@
 // with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 
 #include <cfloat> // DBL_MAX, FLT_MIN, FLT_MAX
-#include <cmath> // NAN, INFINITY
 #include <cstdio> // std::printf
-#include <cstdlib> // std::exit
 #include <string> // std::string
 
 #include "../include/sp.hpp"
 
 static const char* s_testCaseDescr = nullptr;
+static int s_failed = 0;
+
+#if defined(_MSC_VER)
+#include <Windows.h>
+#define DEBUG_BREAK() ((void)(IsDebuggerPresent() ? DebugBreak() : 0))
+#else
+#define DEBUG_BREAK()
+#endif
 
 #define TEST_CASE(descr)           \
     for (;;) {                     \
@@ -31,7 +37,10 @@ static const char* s_testCaseDescr = nullptr;
         std::printf("- Test case: %s\n", s_testCaseDescr);      \
         std::printf("- Location: %s:%d\n", __FILE__, __LINE__); \
         std::printf("- Expression: %s\n", #expr);               \
-        std::exit(1);                                           \
+        std::printf("\n");                                      \
+        DEBUG_BREAK();                                          \
+        ++s_failed;                                             \
+        break;                                                  \
     }
 
 #define TEST_FORMAT(expected, fmt, ...)                                                  \
@@ -123,8 +132,24 @@ int main()
     TEST_CASE("Custom format")
     {
         TEST_FORMAT("<@:>f0\\", "{:<@:>f0\\}", Foo{});
-        TEST_FORMAT("{:{}", "{:{}}", Foo{});
+        TEST_FORMAT("{}", "{:{{}}}", Foo{});
         TEST_FORMAT("<empty>}", "{:}}", Foo{});
+    }
+
+    TEST_CASE("Nested formats")
+    {
+        TEST_FORMAT("+    52.00", "{:{}}", 52.0f, "=+10.2f");
+        TEST_FORMAT("oog", "{1:.{0}}", 3, "ooga");
+        TEST_FORMAT("   1.0000", "{:{}.{}f}", 1.0f, 9, 4);
+
+        // LET'S GO DEEPER
+        TEST_FORMAT("Hello", "{0:{0:{1}}}", Foo{}, "Hello");
+
+        // SO DEEP
+        TEST_FORMAT("Hello", "{0:{0:{0:{1}}}}", Foo{}, "Hello");
+
+        // IT'S LIKE SHAKESPEARE IN HERE. SO DEEP
+        TEST_FORMAT("Hello", "{0:{0:{0:{0:{1}}}}}", Foo{}, "Hello");
     }
 
     TEST_CASE("Readme formats")
@@ -147,7 +172,9 @@ int main()
         TEST_FORMAT("0 1 2", "{0} {1} {2}", 0, 1, 2);
         TEST_FORMAT("0 1 1 2 1", "{} {} {1} {} {1}", 0, 1, 2);
         TEST_FORMAT("0 1 1 2 1", "{0} {1} {1} {2} {1}", 0, 1, 2);
-        TEST_FORMAT("{0:{1}", "{0:{1}}", 1);
+        TEST_FORMAT("  1", "{0:{1}}", 1, 3);
+        TEST_FORMAT("+5.0 _", "{:{}{}} {}", 5.0f, '+', ".1f", '_');
+        TEST_FORMAT("+5.0 _", "{0:{1}{2}} {3}", 5.0f, '+', ".1f", '_');
         TEST_FORMAT("{:_}", "{:_}", 1);
         TEST_FORMAT("{:,}", "{:,}", 1);
         TEST_FORMAT("{:n}", "{:n}", 1);
@@ -264,7 +291,7 @@ int main()
 
     TEST_CASE("String formats")
     {
-        TEST_FORMAT("", "{}", (const char *)nullptr);
+        TEST_FORMAT("", "{}", (const char*)nullptr);
         TEST_FORMAT("abc", "a{}c", "b");
         TEST_FORMAT("bar", "{}{}{}", "b", "a", "r");
         TEST_FORMAT("baz", "{2}{0}{}", "a", "z", "b");
@@ -286,5 +313,9 @@ int main()
         TEST_FORMAT(str.data(), "{0:1000}", "");
     }
 
-    sp::print("All tests passed!\n");
+    if (!s_failed) {
+        sp::print("All tests passed!\n");
+    }
+
+    return s_failed;
 }

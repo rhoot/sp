@@ -82,10 +82,14 @@ format and this library's format are as such:
   * `{} {} {}` is the same as `{0} {1} {2}`.
   * `{} {} {1} {} {1}` is the same as `{0} {1} {1} {2} {1}`.
 
-* Replacement fields may not be used within another replacement field.
+* Replacement fields may be nested, but only in the `format_spec`. The
+  resulting `format_spec` may not exceed 64 characters. Nested formats greater
+  than that may result in badly formatted strings. When using non-indexed
+  replacement fields, the index is shared with the parent format string.
 
-  * `{0:{1}}` is an invalid replacement field, and results in `{0:{1}` as the
-    `}}` is treated as an escaped curly brace.
+  * `{0:{1}}` when called with `1` as first argument and `3` as second
+    argument, results in `  1`.
+  * `{:{}{}} {}` is the same as `{0:{1}{2}} {3}`.
 
 * `grouping_option`s are not supported.
 
