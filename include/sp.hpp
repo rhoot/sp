@@ -22,47 +22,10 @@
 
 namespace sp {
 
-    /// Output for the string formatter.
-    class Output {
-    public:
-        /// Construct an output that writes to standard out.
-        Output();
-
-        /// Construct an output that writes into the provided buffer, with the
-        /// given size.
-        Output(char buffer[], size_t size);
-
-        /// Construct an output that writes into the provided FILE stream.
-        explicit Output(std::FILE* stream);
-
-        /// Return the result of the print operation.
-        ///
-        /// If the underlying output is a FILE stream:
-        /// - Return the amount of `char`s written in case of success.
-        /// - Return `-1` in case of error.
-        ///
-        /// If the underlying output is a buffer:
-        /// - Return the amount of `char`s that make up the result of the
-        ///   formatted string. If the buffer was not big enough to hold the
-        ///   entire formatted string, the returned length may be larger than
-        ///   the size of the buffer.
-        /// - Return `-1` in case of error.
-        int32_t result() const;
-
-        /// Write the provided character into the output.
-        void write(char ch);
-
-        /// Write the provided data into the output.
-        void write(size_t length, const void* data);
-
-    private:
-        Output(const Output&) = delete;
-        Output& operator=(const Output&) = delete;
-
-        std::FILE* m_stream = nullptr;
-        char* m_buffer = nullptr;
-        int32_t m_size = 0;
-        int32_t m_length = 0;
+    /// Writer interface for the formatters.
+    struct IWriter {
+        /// Write the provided data to the output.
+        virtual void write(size_t length, const void* data) = 0;
     };
 
     /// View into a string.
@@ -87,11 +50,10 @@ namespace sp {
     template <class... Args>
     int32_t print(const StringView& fmt, Args&&... args);
 
-    /// Print to the provided output using the provided format with the
-    /// provided format arguments. Return the result of calling
-    /// `output.result()`.
+    /// Print to the provided writer using the provided format with the
+    /// provided format arguments.
     template <class... Args>
-    int32_t format(Output& output, const StringView& fmt, Args&&... args);
+    void format(IWriter& writer, const StringView& fmt, Args&&... args);
 
     /// Print to the provided FILE stream using the provided format with the
     /// provided format arguments. Return the amount of `char`s written, or
@@ -116,26 +78,26 @@ namespace sp {
     int32_t format(char (&buffer)[N], const StringView& fmt, Args&&... args);
 
     /// Provided format functions.
-    bool format_value(Output& output, const StringView& fmt, bool value);
-    bool format_value(Output& output, const StringView& fmt, float value);
-    bool format_value(Output& output, const StringView& fmt, double value);
-    bool format_value(Output& output, const StringView& fmt, char value);
-    bool format_value(Output& output, const StringView& fmt, char16_t value);
-    bool format_value(Output& output, const StringView& fmt, char32_t value);
-    bool format_value(Output& output, const StringView& fmt, signed char value);
-    bool format_value(Output& output, const StringView& fmt, unsigned char value);
-    bool format_value(Output& output, const StringView& fmt, short value);
-    bool format_value(Output& output, const StringView& fmt, unsigned short value);
-    bool format_value(Output& output, const StringView& fmt, int value);
-    bool format_value(Output& output, const StringView& fmt, unsigned value);
-    bool format_value(Output& output, const StringView& fmt, long value);
-    bool format_value(Output& output, const StringView& fmt, unsigned long value);
-    bool format_value(Output& output, const StringView& fmt, long long value);
-    bool format_value(Output& output, const StringView& fmt, unsigned long long value);
-    bool format_value(Output& output, const StringView& fmt, const char value[]);
+    bool format_value(IWriter& writer, const StringView& fmt, bool value);
+    bool format_value(IWriter& writer, const StringView& fmt, float value);
+    bool format_value(IWriter& writer, const StringView& fmt, double value);
+    bool format_value(IWriter& writer, const StringView& fmt, char value);
+    bool format_value(IWriter& writer, const StringView& fmt, char16_t value);
+    bool format_value(IWriter& writer, const StringView& fmt, char32_t value);
+    bool format_value(IWriter& writer, const StringView& fmt, signed char value);
+    bool format_value(IWriter& writer, const StringView& fmt, unsigned char value);
+    bool format_value(IWriter& writer, const StringView& fmt, short value);
+    bool format_value(IWriter& writer, const StringView& fmt, unsigned short value);
+    bool format_value(IWriter& writer, const StringView& fmt, int value);
+    bool format_value(IWriter& writer, const StringView& fmt, unsigned value);
+    bool format_value(IWriter& writer, const StringView& fmt, long value);
+    bool format_value(IWriter& writer, const StringView& fmt, unsigned long value);
+    bool format_value(IWriter& writer, const StringView& fmt, long long value);
+    bool format_value(IWriter& writer, const StringView& fmt, unsigned long long value);
+    bool format_value(IWriter& writer, const StringView& fmt, const char value[]);
 
     template <class T>
-    bool format_value(Output& output, const StringView& fmt, T* value);
+    bool format_value(IWriter& output, const StringView& fmt, T* value);
 
 } // namespace sp
 
@@ -145,48 +107,27 @@ namespace sp {
 
 namespace sp {
 
-    inline Output::Output()
-        : m_stream(stdout)
-    {
-    }
+    class StringWriter : public IWriter {
+    public:
+        StringWriter(char buffer[], size_t size)
+            : m_buffer(buffer)
+            , m_size(size)
+            , m_length(0)
+        {
+        }
 
-    inline Output::Output(char buffer[], size_t size)
-        : m_buffer(buffer)
-        , m_size(int32_t(size))
-    {
-    }
+        int32_t result() const
+        {
+            return m_length;
+        }
 
-    inline Output::Output(std::FILE* stream)
-        : m_stream(stream)
-    {
-    }
-
-    inline int32_t Output::result() const
-    {
-        return m_length;
-    }
-
-    inline void Output::write(char ch)
-    {
-        write(sizeof(ch), &ch);
-    }
-
-    inline void Output::write(size_t bytes, const void* data)
-    {
-        if (m_length >= 0) {
-            if (m_stream) {
-                const auto written = std::fwrite(data, 1, bytes, m_stream);
-
-                if (written == bytes) {
-                    m_length += int32_t(written);
-                } else {
-                    m_length = -1;
-                }
-            } else {
-                m_length += int32_t(bytes);
+        void write(size_t length, const void* data) override
+        {
+            if (m_length >= 0) {
+                m_length += int32_t(length);
 
                 if (m_size) {
-                    const auto toCopy = std::min(size_t(m_size) - 1, bytes);
+                    const auto toCopy = std::min(size_t(m_size) - 1, length);
                     std::memcpy(m_buffer, data, toCopy);
                     m_buffer[toCopy] = 0;
                     m_buffer += toCopy;
@@ -194,6 +135,47 @@ namespace sp {
                 }
             }
         }
+
+    private:
+        char* m_buffer;
+        int32_t m_size;
+        int32_t m_length;
+    };
+
+    class StreamWriter : public IWriter {
+    public:
+        StreamWriter(FILE* stream)
+            : m_stream(stream)
+            , m_length(0)
+        {
+        }
+
+        int32_t result() const
+        {
+            return m_length;
+        }
+
+        void write(size_t length, const void* data) override
+        {
+            if (m_length >= 0) {
+                const auto written = std::fwrite(data, 1, length, m_stream);
+
+                if (written == length) {
+                    m_length += int32_t(written);
+                } else {
+                    m_length = -1;
+                }
+            }
+        }
+
+    private:
+        FILE* m_stream;
+        int32_t m_length;
+    };
+
+    inline void write_char(IWriter& writer, char ch)
+    {
+        writer.write(1, &ch);
     }
 
     inline StringView::StringView() {}
@@ -358,7 +340,7 @@ namespace sp {
         return true;
     }
 
-    inline bool format_int(Output& output, const FormatFlags& flags, bool isNegative, uint64_t value)
+    inline bool format_int(IWriter& writer, const FormatFlags& flags, bool isNegative, uint64_t value)
     {
         // determine base
         int32_t base = 10;
@@ -476,34 +458,34 @@ namespace sp {
 
         // print sign, if it should be before the padding
         if (sign && flags.align == '=') {
-            output.write(sign);
+            write_char(writer, sign);
         }
 
         // apply the leading padding
         const char fill = flags.fill ? flags.fill : ' ';
 
         while (leadSpace--) {
-            output.write(fill);
+            write_char(writer, fill);
         }
 
         // print the sign, if it should be after the padding
         if (sign && flags.align != '=') {
-            output.write(sign);
+            write_char(writer, sign);
         }
 
         // print digits
-        output.write(ndigits, digits);
+        writer.write(ndigits, digits);
 
         // print tailing padding
         while (tailSpace--) {
-            output.write(fill);
+            write_char(writer, fill);
         }
 
         return true;
     }
 
     template <class F>
-    bool format_float(Output& output, const StringView& format, F value)
+    bool format_float(IWriter& writer, const StringView& format, F value)
     {
         FormatFlags flags;
 
@@ -588,33 +570,33 @@ namespace sp {
 
         // print sign, if it should be before the padding
         if (sign && flags.align == '=') {
-            output.write(sign);
+            write_char(writer, sign);
         }
 
         // apply leading padding
         const char fill = flags.fill ? flags.fill : ' ';
 
         while (leadSpace--) {
-            output.write(fill);
+            write_char(writer, fill);
         }
 
         // print sign, if it should be after the padding
         if (sign && flags.align != '=') {
-            output.write(sign);
+            write_char(writer, sign);
         }
 
         // write string
-        output.write(ndigits, digits);
+        writer.write(ndigits, digits);
 
         // apply tailing padding
         while (tailSpace--) {
-            output.write(fill);
+            write_char(writer, fill);
         }
 
         return true;
     }
 
-    inline bool format_string(Output& output, const StringView& format, const StringView& str)
+    inline bool format_string(IWriter& writer, const StringView& format, const StringView& str)
     {
         FormatFlags flags;
 
@@ -656,15 +638,15 @@ namespace sp {
         const char fill = flags.fill ? flags.fill : ' ';
 
         while (leadSpace--) {
-            output.write(fill);
+            write_char(writer, fill);
         }
 
         // write string
-        output.write(nchars, str.ptr);
+        writer.write(nchars, str.ptr);
 
         // apply tailing padding
         while (tailSpace--) {
-            output.write(fill);
+            write_char(writer, fill);
         }
 
         return true;
@@ -673,36 +655,36 @@ namespace sp {
     struct DummyArg {
     };
 
-    inline bool format_value(Output&, const StringView&, const DummyArg&)
+    inline bool format_value(IWriter&, const StringView&, const DummyArg&)
     {
         return false;
     }
 
-    inline bool format_index(Output&, const StringView&, int32_t)
+    inline bool format_index(IWriter&, const StringView&, int32_t)
     {
         return false;
     }
 
     template <class Arg, class... Rest>
-    bool format_index(Output& output, const StringView& format, int32_t index, Arg&& arg, Rest&&... rest)
+    bool format_index(IWriter& writer, const StringView& format, int32_t index, Arg&& arg, Rest&&... rest)
     {
         if (!index) {
-            return format_value(output, format, std::forward<Arg>(arg));
+            return format_value(writer, format, std::forward<Arg>(arg));
         } else {
-            return format_index(output, format, index - 1, std::forward<Rest>(rest)...);
+            return format_index(writer, format, index - 1, std::forward<Rest>(rest)...);
         }
     }
 
     template <class... Args>
     int32_t print(const StringView& fmt, Args&&... args)
     {
-        Output output;
-        format(output, fmt, std::forward<Args>(args)...);
-        return output.result();
+        StreamWriter writer(stdout);
+        format(writer, fmt, std::forward<Args>(args)...);
+        return writer.result();
     }
 
     template <class... Args>
-    int32_t format(Output& output, const StringView& fmt, int32_t* prevIndex, Args&&... args)
+    void format(IWriter& writer, const StringView& fmt, int32_t* prevIndex, Args&&... args)
     {
         enum State {
             STATE_OPENER,
@@ -712,7 +694,6 @@ namespace sp {
             STATE_CLOSER,
         };
 
-        auto before = output.result();
         auto state = STATE_OPENER;
         auto next = fmt.ptr;
         auto start = fmt.ptr;
@@ -730,7 +711,7 @@ namespace sp {
             switch (state) {
             case STATE_OPENER:
                 if (ch == '{') {
-                    output.write(int32_t(ptr - start), start);
+                    writer.write(int32_t(ptr - start), start);
 
                     if (next < term) {
                         if (*next != '{') {
@@ -744,7 +725,7 @@ namespace sp {
                         }
                     }
                 } else if (ch == '}') {
-                    output.write(int32_t(next - start), start);
+                    writer.write(int32_t(next - start), start);
                     if (next < term && *next == '}') {
                         ++next;
                     }
@@ -811,7 +792,7 @@ namespace sp {
                         format = StringView(buffer, int32_t(realLen));
                     }
 
-                    if (format_index(output, format, index, std::forward<Args>(args)...)) {
+                    if (format_index(writer, format, index, std::forward<Args>(args)...)) {
                         start = next;
                     }
                 }
@@ -822,70 +803,67 @@ namespace sp {
 
         // Print remaining data
         if (start != term) {
-            output.write(int32_t(term - start), start);
+            writer.write(int32_t(term - start), start);
         }
-
-        auto after = output.result();
-        return after < 0 ? after : (after - before);
     }
 
     template <class... Args>
-    int32_t format(Output& output, const StringView& fmt, Args&&... args)
+    void format(IWriter& writer, const StringView& fmt, Args&&... args)
     {
         int32_t prevIndex = -1;
-        return format(output, fmt, &prevIndex, std::forward<Args>(args)...);
+        format(writer, fmt, &prevIndex, std::forward<Args>(args)...);
     }
 
     template <class... Args>
     int32_t format(std::FILE* file, const StringView& fmt, Args&&... args)
     {
-        Output output(file);
-        format(output, fmt, std::forward<Args>(args)...);
-        return output.result();
+        StreamWriter writer(file);
+        format(writer, fmt, std::forward<Args>(args)...);
+        return writer.result();
     }
 
     template <class... Args>
     int32_t format(char buffer[], size_t size, const StringView& fmt, Args&&... args)
     {
-        Output output(buffer, size);
-        format(output, fmt, std::forward<Args>(args)...);
-        return output.result();
+        StringWriter writer(buffer, size);
+        format(writer, fmt, std::forward<Args>(args)...);
+        return writer.result();
     }
 
     template <size_t N, class... Args>
     int32_t format(char (&buffer)[N], const StringView& fmt, Args&&... args)
     {
-        Output output(buffer, N);
-        format(output, fmt, std::forward<Args>(args)...);
-        return output.result();
+        StringWriter writer(buffer, N);
+        format(writer, fmt, std::forward<Args>(args)...);
+        return writer.result();
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, bool value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, bool value)
     {
-        return format_string(output, fmt, value ? "true" : "false");
+        return format_string(writer, fmt, value ? "true" : "false");
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, float value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, float value)
     {
-        return format_float(output, fmt, value);
+        return format_float(writer, fmt, value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, double value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, double value)
     {
-        return format_float(output, fmt, value);
+        return format_float(writer, fmt, value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, char value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, char value)
     {
-        return format_value(output, fmt, char32_t(value));
+        return format_value(writer, fmt, char32_t(value));
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, char16_t value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, char16_t value)
     {
-        return format_value(output, fmt, char32_t(value));
+        return format_value(writer, fmt, char32_t(value));
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, char32_t value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, char32_t value)
     {
         FormatFlags flags;
 
@@ -898,53 +876,53 @@ namespace sp {
                 flags.align = '<';
             }
 
-            return format_int(output, flags, false, uint64_t(value));
+            return format_int(writer, flags, false, uint64_t(value));
         }
 
         return false;
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, signed char value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, signed char value)
     {
-        return format_value(output, fmt, (long long)value);
+        return format_value(writer, fmt, (long long)value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, unsigned char value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, unsigned char value)
     {
-        return format_value(output, fmt, (unsigned long long)value);
+        return format_value(writer, fmt, (unsigned long long)value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, short value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, short value)
     {
-        return format_value(output, fmt, (long long)value);
+        return format_value(writer, fmt, (long long)value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, unsigned short value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, unsigned short value)
     {
-        return format_value(output, fmt, (unsigned long long)value);
+        return format_value(writer, fmt, (unsigned long long)value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, int value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, int value)
     {
-        return format_value(output, fmt, (long long)value);
+        return format_value(writer, fmt, (long long)value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, unsigned value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, unsigned value)
     {
-        return format_value(output, fmt, (unsigned long long)value);
+        return format_value(writer, fmt, (unsigned long long)value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, long value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, long value)
     {
-        return format_value(output, fmt, (long long)value);
+        return format_value(writer, fmt, (long long)value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, unsigned long value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, unsigned long value)
     {
-        return format_value(output, fmt, (unsigned long long)value);
+        return format_value(writer, fmt, (unsigned long long)value);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, long long value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, long long value)
     {
         static_assert(sizeof(value) == sizeof(uint64_t), "invalid cast on negation");
 
@@ -955,24 +933,24 @@ namespace sp {
         FormatFlags flags;
 
         return parse_format(fmt, &flags)
-            && format_int(output, flags, value < 0, abs);
+            && format_int(writer, flags, value < 0, abs);
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, unsigned long long value)
+    inline bool format_value(IWriter& writer, const StringView& fmt, unsigned long long value)
     {
         FormatFlags flags;
 
         return parse_format(fmt, &flags)
-            && format_int(output, flags, false, uint64_t(value));
+            && format_int(writer, flags, false, uint64_t(value));
     }
 
-    inline bool format_value(Output& output, const StringView& fmt, const char value[])
+    inline bool format_value(IWriter& writer, const StringView& fmt, const char value[])
     {
-        return format_string(output, fmt, value);
+        return format_string(writer, fmt, value);
     }
 
     template <class T>
-    bool format_value(Output& output, const StringView& fmt, T* value)
+    bool format_value(IWriter& writer, const StringView& fmt, T* value)
     {
         FormatFlags flags;
 
@@ -981,7 +959,7 @@ namespace sp {
                 flags.type = 'x';
             }
 
-            return format_int(output, flags, false, uint64_t(value));
+            return format_int(writer, flags, false, uint64_t(value));
         }
 
         return false;

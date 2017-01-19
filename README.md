@@ -125,15 +125,15 @@ Custom formatter
 Support for formatting your own types may be achieved by overloading the
 `format_value` function. The signature should be:
 
-    bool format_value(sp::Output& output, const sp::StringView& format, T value);
+    bool format_value(sp::IWriter& writer, const sp::StringView& format, T value);
 
 Where `T` is your type. This function must be placed either in the `sp`
 namespace, or the same namespace as the type it is formatting (`T` above).
 
 ### Arguments
 
-#### output
-Output to write the resulting formatted string into.
+#### writer
+Writer to write the resulting formatted string with.
 
 #### format
 The raw format specifier flags, as they appeared in the replacement field. If

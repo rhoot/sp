@@ -58,12 +58,12 @@ static int s_failed = 0;
 struct Foo {
 };
 
-static bool format_value(sp::Output& output, const sp::StringView& format, const Foo&)
+static bool format_value(sp::IWriter& writer, const sp::StringView& format, const Foo&)
 {
     if (!format.length) {
-        output.write(7, "<empty>");
+        writer.write(7, "<empty>");
     } else {
-        output.write(format.length, format.ptr);
+        writer.write(format.length, format.ptr);
     }
     return true;
 }
@@ -75,11 +75,11 @@ int main()
         // it should result in the length of the written string
         {
             char buffer[64];
-            sp::Output output(buffer, sizeof(buffer));
-            output.write(3, "foo");
-            REQUIRE(output.result() == 3);
-            output.write('d');
-            REQUIRE(output.result() == 4);
+            sp::StringWriter writer(buffer, sizeof(buffer));
+            writer.write(3, "foo");
+            REQUIRE(writer.result() == 3);
+            sp::write_char(writer, 'd');
+            REQUIRE(writer.result() == 4);
         }
 
         // it should not overflow
@@ -87,8 +87,8 @@ int main()
             char buffer[6] = { -1, -1, -1, -1, -1, -1 };
 
             // Lie about the length so we can make sure it doesn't overflow
-            sp::Output output(buffer, 4);
-            output.write(6, "foobar");
+            sp::StringWriter writer(buffer, 4);
+            writer.write(6, "foobar");
 
             REQUIRE(buffer[0] == 'f');
             REQUIRE(buffer[1] == 'o');
@@ -102,8 +102,8 @@ int main()
         {
             char buffer[5];
 
-            sp::Output output(buffer, sizeof(buffer));
-            output.write(10, "ooga booga");
+            sp::StringWriter writer(buffer, sizeof(buffer));
+            writer.write(10, "ooga booga");
 
             REQUIRE(buffer[0] == 'o');
             REQUIRE(buffer[1] == 'o');
@@ -111,7 +111,7 @@ int main()
             REQUIRE(buffer[3] == 'a');
             REQUIRE(buffer[4] == 0);
 
-            REQUIRE(output.result() == 10);
+            REQUIRE(writer.result() == 10);
         }
     }
 
