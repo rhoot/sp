@@ -721,6 +721,7 @@ namespace sp {
         const char* formatStart = nullptr;
         auto index = -1;
         auto opened = 0;
+        auto nested = false;
 
         while (next < term) {
             const auto ptr = next++;
@@ -735,6 +736,7 @@ namespace sp {
                         if (*next != '{') {
                             index = -1;
                             start = ptr;
+                            nested = false;
                             formatStart = nullptr;
                             state = STATE_INDEX;
                         } else {
@@ -782,6 +784,7 @@ namespace sp {
                 switch (ch) {
                 case '{':
                     ++opened;
+                    nested = true;
                     break;
                 case '}':
                     if (--opened < 0) {
@@ -802,7 +805,7 @@ namespace sp {
                     // handle nested format specifiers
                     char buffer[64];
 
-                    if (opened < 0) {
+                    if (nested) {
                         const auto fullLen = sp::format(buffer, format, prevIndex, std::forward<Args>(args)...);
                         const auto realLen = std::min(size_t(fullLen), sizeof(buffer));
                         format = StringView(buffer, int32_t(realLen));
