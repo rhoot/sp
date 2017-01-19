@@ -13,6 +13,13 @@ Features:
   dependencies.
 * More flexible formatting than printf, less verbose than iostreams.
 
+**Important:** This library treats null characters as any other character.
+They are never used for terminating strings. As such, the output is not
+guaranteed to be null terminated either. That said, if a null terminator is
+present in the input format string, and the entire format string fits in the
+output, the output will be null terminated too (as the null character is
+treated as part of the format).
+
 Examples
 --------
 

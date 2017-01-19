@@ -127,9 +127,8 @@ namespace sp {
                 m_length += int32_t(length);
 
                 if (m_size) {
-                    const auto toCopy = std::min(size_t(m_size) - 1, length);
+                    const auto toCopy = std::min(size_t(m_size), length);
                     std::memcpy(m_buffer, data, toCopy);
-                    m_buffer[toCopy] = 0;
                     m_buffer += toCopy;
                     m_size -= int32_t(toCopy);
                 }

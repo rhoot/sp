@@ -49,7 +49,7 @@ static int s_failed = 0;
         buffer[0] = 0;                                                                   \
         const auto expectedLen = int32_t(std::strlen(expected));                         \
         const auto actualLen = sp::format(buffer, 10 * 1024 * 1024, fmt, ##__VA_ARGS__); \
-        REQUIRE(std::strcmp(expected, buffer) == 0);                                     \
+        REQUIRE(std::memcmp(expected, buffer, actualLen) == 0);                          \
         REQUIRE(expectedLen == actualLen);                                               \
         std::free(buffer);                                                               \
         break;                                                                           \
@@ -93,7 +93,7 @@ int main()
             REQUIRE(buffer[0] == 'f');
             REQUIRE(buffer[1] == 'o');
             REQUIRE(buffer[2] == 'o');
-            REQUIRE(buffer[3] == 0);
+            REQUIRE(buffer[3] == 'b');
             REQUIRE(buffer[4] == -1);
             REQUIRE(buffer[5] == -1);
         }
@@ -109,7 +109,7 @@ int main()
             REQUIRE(buffer[1] == 'o');
             REQUIRE(buffer[2] == 'g');
             REQUIRE(buffer[3] == 'a');
-            REQUIRE(buffer[4] == 0);
+            REQUIRE(buffer[4] == ' ');
 
             REQUIRE(writer.result() == 10);
         }
@@ -311,6 +311,43 @@ int main()
 
         str = std::string(1000, ' ');
         TEST_FORMAT(str.data(), "{0:1000}", "");
+
+        // We only null-terminate if the format is null-terminated, and only
+        // if the entire format was able to be written. Basically we ignore
+        // them but copy them as just any other character.
+        {
+            // Fill the entire buffer.
+            char buffer[4] = { 0x7f, 0x7f, 0x7f, 0x7f };
+            const auto written = sp::format(buffer, "{}{}{}{}", 1, 2, 3, 4);
+            REQUIRE(written == 4);
+            REQUIRE(buffer[0] == '1');
+            REQUIRE(buffer[1] == '2');
+            REQUIRE(buffer[2] == '3');
+            REQUIRE(buffer[3] == '4');
+        }
+
+        {
+            // Leave the remaining chars alone
+            char buffer[5] = { 0x7f, 0x7f, 0x7f, 0x7f, 0x7f };
+            const auto written = sp::format(buffer, "{}{}{}", 1, 2, 3);
+            REQUIRE(written == 3);
+            REQUIRE(buffer[0] == '1');
+            REQUIRE(buffer[1] == '2');
+            REQUIRE(buffer[2] == '3');
+            REQUIRE(buffer[3] == 0x7f);
+            REQUIRE(buffer[4] == 0x7f);
+        }
+
+        {
+            // Keep the null terminator from the format, if it had one
+            char buffer[4] = { 0x7f, 0x7f, 0x7f, 0x7f };
+            const auto written = sp::format(buffer, sp::StringView("{}{}{}", 7), 1, 2, 3);
+            REQUIRE(written == 4);
+            REQUIRE(buffer[0] == '1');
+            REQUIRE(buffer[1] == '2');
+            REQUIRE(buffer[2] == '3');
+            REQUIRE(buffer[3] == 0);
+        }
     }
 
     if (!s_failed) {
