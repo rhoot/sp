@@ -292,7 +292,10 @@ int main()
 
     TEST_CASE("String formats")
     {
+        char abc[4] = {'a', 'b', 'c', 0};
+
         TEST_FORMAT("", "{}", (const char*)nullptr);
+        TEST_FORMAT("abc", "{}", abc);
         TEST_FORMAT("abc", "a{}c", "b");
         TEST_FORMAT("bar", "{}{}{}", "b", "a", "r");
         TEST_FORMAT("baz", "{2}{0}{}", "a", "z", "b");

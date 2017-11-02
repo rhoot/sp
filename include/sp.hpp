@@ -95,6 +95,7 @@ namespace sp {
     bool format_value(IWriter& writer, const StringView& fmt, unsigned long value);
     bool format_value(IWriter& writer, const StringView& fmt, long long value);
     bool format_value(IWriter& writer, const StringView& fmt, unsigned long long value);
+    bool format_value(IWriter& writer, const StringView& fmt, char value[]);
     bool format_value(IWriter& writer, const StringView& fmt, const char value[]);
     bool format_value(IWriter& writer, const StringView& fmt, const StringView& value);
 
@@ -953,6 +954,11 @@ namespace sp {
 
         return parse_format(fmt, &flags)
             && format_int(writer, flags, false, uint64_t(value));
+    }
+
+    inline bool format_value(IWriter& writer, const StringView& fmt, char value[])
+    {
+        return format_string(writer, fmt, value);
     }
 
     inline bool format_value(IWriter& writer, const StringView& fmt, const char value[])
