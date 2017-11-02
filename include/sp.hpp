@@ -84,6 +84,7 @@ namespace sp {
     bool format_value(IWriter& writer, const StringView& fmt, char value);
     bool format_value(IWriter& writer, const StringView& fmt, char16_t value);
     bool format_value(IWriter& writer, const StringView& fmt, char32_t value);
+    bool format_value(IWriter& writer, const StringView& fmt, wchar_t value);
     bool format_value(IWriter& writer, const StringView& fmt, signed char value);
     bool format_value(IWriter& writer, const StringView& fmt, unsigned char value);
     bool format_value(IWriter& writer, const StringView& fmt, short value);
@@ -95,6 +96,7 @@ namespace sp {
     bool format_value(IWriter& writer, const StringView& fmt, long long value);
     bool format_value(IWriter& writer, const StringView& fmt, unsigned long long value);
     bool format_value(IWriter& writer, const StringView& fmt, const char value[]);
+    bool format_value(IWriter& writer, const StringView& fmt, const StringView& value);
 
     template <class T>
     bool format_value(IWriter& output, const StringView& fmt, T* value);
@@ -881,6 +883,16 @@ namespace sp {
         return false;
     }
 
+    template <size_t S> struct WcharSelector;
+    template<> struct WcharSelector<2> { using Type = char16_t; };
+    template<> struct WcharSelector<4> { using Type = char32_t; };
+
+    inline bool format_value(IWriter& writer, const StringView& fmt, wchar_t value)
+    {
+        using CharType = typename WcharSelector<sizeof(wchar_t)>::Type;
+        return format_value(writer, fmt, CharType(value));
+    }
+
     inline bool format_value(IWriter& writer, const StringView& fmt, signed char value)
     {
         return format_value(writer, fmt, (long long)value);
@@ -944,6 +956,11 @@ namespace sp {
     }
 
     inline bool format_value(IWriter& writer, const StringView& fmt, const char value[])
+    {
+        return format_string(writer, fmt, value);
+    }
+
+    inline bool format_value(IWriter& writer, const StringView& fmt, const StringView& value)
     {
         return format_string(writer, fmt, value);
     }

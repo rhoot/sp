@@ -191,6 +191,7 @@ int main()
         TEST_FORMAT(" ", "{}", (char)32);
         TEST_FORMAT(" ", "{}", (char16_t)32);
         TEST_FORMAT(" ", "{}", (char32_t)32);
+        TEST_FORMAT(" ", "{}", (wchar_t)32);
         TEST_FORMAT("x", "{}", 'x');
         TEST_FORMAT("A", "{:c}", 65);
         TEST_FORMAT("(-41)", "{:c}", -65);
@@ -304,6 +305,7 @@ int main()
         TEST_FORMAT("cc", "{:c<2s}", "c");
         TEST_FORMAT("trunc", "{:.5}", "truncate");
         TEST_FORMAT("--ball---", "{:-^9.4s}", "ballet");
+        TEST_FORMAT("foo", "{}", sp::StringView("foo"));
 
         std::string str(999, ' ');
         str.push_back('a');
