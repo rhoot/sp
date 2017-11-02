@@ -113,8 +113,8 @@ namespace sp {
     public:
         StringWriter(char buffer[], size_t size)
             : m_buffer(buffer)
-            , m_size(size)
-            , m_length(int32_t(0))
+            , m_size(int32_t(size))
+            , m_length(0)
         {
         }
 
