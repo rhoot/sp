@@ -138,6 +138,7 @@ int main()
 
     TEST_CASE("Nested formats")
     {
+        TEST_FORMAT("a b ", "{:{}}{:{}}", 'a', 2, 'b', 2);
         TEST_FORMAT("+    52.00", "{:{}}", 52.0f, "=+10.2f");
         TEST_FORMAT("oog", "{1:.{0}}", 3, "ooga");
         TEST_FORMAT("   1.0000", "{:{}.{}f}", 1.0f, 9, 4);

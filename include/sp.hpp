@@ -770,7 +770,10 @@ namespace sp {
                     nested = true;
                     break;
                 case '}':
-                    if (--opened < 0) {
+                    if (opened > 0) {
+                        --opened;
+                    }
+                    else {
                         state = STATE_CLOSER;
                         --next;
                     }
