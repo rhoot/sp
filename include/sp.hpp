@@ -686,7 +686,7 @@ namespace sp {
     }
 
     template <class... Args>
-    void format(IWriter& writer, const StringView& fmt, int32_t* prevIndex, Args&&... args)
+    void do_format(IWriter& writer, const StringView& fmt, int32_t* prevIndex, Args&&... args)
     {
         enum State {
             STATE_OPENER,
@@ -792,7 +792,9 @@ namespace sp {
                     char buffer[64];
 
                     if (nested) {
-                        const auto fullLen = sp::format(buffer, format, prevIndex, std::forward<Args>(args)...);
+                        StringWriter nestedWriter(buffer, sizeof(buffer));
+                        sp::do_format(nestedWriter, format, prevIndex, std::forward<Args>(args)...);
+                        const auto fullLen = nestedWriter.result();
                         const auto realLen = std::min(size_t(fullLen), sizeof(buffer));
                         format = StringView(buffer, int32_t(realLen));
                     }
@@ -816,7 +818,7 @@ namespace sp {
     void format(IWriter& writer, const StringView& fmt, Args&&... args)
     {
         int32_t prevIndex = -1;
-        format(writer, fmt, &prevIndex, std::forward<Args>(args)...);
+        do_format(writer, fmt, &prevIndex, std::forward<Args>(args)...);
     }
 
     template <class... Args>

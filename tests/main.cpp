@@ -230,7 +230,7 @@ int main()
         TEST_FORMAT("1", "{}", int64_t(1));
         TEST_FORMAT("1", "{}", uint64_t(1));
 
-        TEST_FORMAT("7ff00000", "{}", (void*)0x7ff00000);
+        TEST_FORMAT("7ff00000", "{}", (int32_t*)0x7ff00000);
 
         TEST_FORMAT("42", "{}", 42);
         TEST_FORMAT("-15", "{0}", -15);
