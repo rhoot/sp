@@ -10,7 +10,7 @@
 // with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 
 #include <cfloat> // DBL_MAX, FLT_MIN, FLT_MAX
-#include <cstdio> // std::printf
+#include <cstdio> // std::printf, fmemopen
 #include <string> // std::string
 
 #include "../include/sp.hpp"
@@ -355,6 +355,43 @@ int main()
             REQUIRE(buffer[3] == 0);
         }
     }
+
+    TEST_CASE("StringWriter") {
+        char buffer[64];
+        sp::StringWriter writer(buffer, sizeof(buffer));
+        char data[40] = {0x77};
+
+        size_t written = writer.write(sizeof(data), data);
+        REQUIRE(written == sizeof(data));
+        written = writer.write(sizeof(data), data);
+        REQUIRE(written == sizeof(buffer) - sizeof(data));
+        written = writer.write(sizeof(data), data);
+        REQUIRE(written == 0);
+
+        REQUIRE(writer.result() == sizeof(data) * 3);
+    }
+
+    // This should work on other platforms too, but only linux implements
+    // fmemopen, which makes this a lot easier to test. Since we're only
+    // really testing our own logic, and not that of the CRT, it should be
+    // fine to only test it on non-Windows platforms anyway.
+#if defined(__linux__)
+    TEST_CASE("StreamWriter") {
+        char buffer[40];
+        char data[40] = {0x77};
+
+        FILE* stream = fmemopen(buffer, sizeof(buffer), "wb");
+        REQUIRE(stream != nullptr);
+        sp::StreamWriter writer(stream);
+
+        // fmemopen is stupid enough to have fwrite return the amount that you
+        // requested to write, irregardless of how much was *actually* written.
+        // So really the only useful thing we can test is that it returns how
+        // much we requested...
+        size_t written = writer.write(sizeof(data), data);
+        REQUIRE(written == sizeof(data));
+    }
+#endif
 
     if (!s_failed) {
         sp::print("All tests passed!\n");

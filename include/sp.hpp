@@ -25,7 +25,7 @@ namespace sp {
     /// Writer interface for the formatters.
     struct IWriter {
         /// Write the provided data to the output.
-        virtual void write(size_t length, const void* data) = 0;
+        virtual size_t write(size_t length, const void* data) = 0;
     };
 
     /// View into a string.
@@ -124,7 +124,7 @@ namespace sp {
             return m_length;
         }
 
-        void write(size_t length, const void* data) override
+        size_t write(size_t length, const void* data) override
         {
             if (m_length >= 0) {
                 m_length += int32_t(length);
@@ -134,8 +134,11 @@ namespace sp {
                     std::memcpy(m_buffer, data, toCopy);
                     m_buffer += toCopy;
                     m_size -= int32_t(toCopy);
+                    return toCopy;
                 }
             }
+
+            return 0;
         }
 
     private:
@@ -157,7 +160,7 @@ namespace sp {
             return m_length;
         }
 
-        void write(size_t length, const void* data) override
+        size_t write(size_t length, const void* data) override
         {
             if (m_length >= 0) {
                 const auto written = std::fwrite(data, 1, length, m_stream);
@@ -167,7 +170,11 @@ namespace sp {
                 } else {
                     m_length = -1;
                 }
+
+                return written;
             }
+
+            return 0;
         }
 
     private:
