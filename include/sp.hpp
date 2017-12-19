@@ -9,6 +9,7 @@
 // You should have received a copy of the CC0 Public Domain Dedication along
 // with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 
+#include <cstddef> // std::nullptr_t
 #include <cstdint> // int32_t, uint64_t
 #include <cstdio> // std::snprintf, std::FILE, std::fwrite
 #include <cstring> // std::memcpy
@@ -78,6 +79,7 @@ namespace sp {
     int32_t format(char (&buffer)[N], const StringView& fmt, Args&&... args);
 
     /// Provided format functions.
+    bool format_value(IWriter& writer, const StringView& fmt, std::nullptr_t);
     bool format_value(IWriter& writer, const StringView& fmt, bool value);
     bool format_value(IWriter& writer, const StringView& fmt, float value);
     bool format_value(IWriter& writer, const StringView& fmt, double value);
@@ -850,6 +852,11 @@ namespace sp {
         StringWriter writer(buffer, N);
         format(writer, fmt, std::forward<Args>(args)...);
         return writer.result();
+    }
+
+    inline bool format_value(IWriter& writer, const StringView& fmt, std::nullptr_t)
+    {
+        return format_value(writer, fmt, (void*)0);
     }
 
     inline bool format_value(IWriter& writer, const StringView& fmt, bool value)

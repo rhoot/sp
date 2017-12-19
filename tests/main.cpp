@@ -11,6 +11,7 @@
 
 #include <cfloat> // DBL_MAX, FLT_MIN, FLT_MAX
 #include <cstdio> // std::printf, fmemopen
+#include <cstdlib> // std::malloc, std::free
 #include <string> // std::string
 
 #include "../include/sp.hpp"
@@ -230,6 +231,7 @@ int main()
         TEST_FORMAT("1", "{}", int64_t(1));
         TEST_FORMAT("1", "{}", uint64_t(1));
 
+        TEST_FORMAT("0", "{}", nullptr);
         TEST_FORMAT("7ff00000", "{}", (int32_t*)0x7ff00000);
 
         TEST_FORMAT("42", "{}", 42);
