@@ -254,6 +254,17 @@ int main()
         TEST_FORMAT("F00", "{:X}", 3840);
         TEST_FORMAT("0XBAD", "{:#X}", 2989);
 
+        TEST_FORMAT("0x000001", "{:#08x}", 1);
+        TEST_FORMAT("0x000001", "{:=#08x}", 1);
+        TEST_FORMAT("0x100000", "{:<#08x}", 1);
+        TEST_FORMAT("000x1000", "{:^#08x}", 1);
+        TEST_FORMAT("000000x1", "{:>#08x}", 1);
+        TEST_FORMAT("-0x00001", "{:-#08x}", -1);
+        TEST_FORMAT("-0x00001", "{:=-#08x}", -1);
+        TEST_FORMAT("-0x10000", "{:<-#08x}", -1);
+        TEST_FORMAT("00-0x100", "{:^-#08x}", -1);
+        TEST_FORMAT("0000-0x1", "{:>-#08x}", -1);
+
         TEST_FORMAT("-0b10000000", "{:#b}", INT8_MIN);
         TEST_FORMAT("+  177", "{:=+6o}", INT8_MAX);
         TEST_FORMAT(">> 18446744073709551615", "{:>> 23}", UINT64_MAX);

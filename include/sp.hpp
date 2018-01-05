@@ -280,8 +280,8 @@ namespace sp {
                 if (ch >= '0' && ch <= '9') {
                     if (flags->width < 0) {
                         if (ch == '0') {
-                            flags->fill = '0';
-                            flags->align = '=';
+                            flags->fill = flags->fill ? flags->fill : '0';
+                            flags->align = flags->align ? flags->align : '=';
                         }
                         flags->width = 0;
                     }
@@ -372,9 +372,11 @@ namespace sp {
 
         // count digits, and copy them to a buffer (so we don't have to repeat
         // this later)
-        char buffer[66]; // max needed; 64-bit binary with alternate form
+        char buffer[67]; // max needed; 64-bit binary + sign + alternate prefix
         char* digits = buffer + sizeof(buffer);
+        char* prefix = buffer + 3;
         int32_t ndigits = 0;
+        int32_t nprefix = 0;
         char type = flags.type;
 
         const bool isChar = type == 'c';
@@ -404,57 +406,58 @@ namespace sp {
             if (flags.alternate) {
                 switch (base) {
                 case 2:
-                    *(--digits) = 'b';
-                    *(--digits) = '0';
-                    ndigits += 2;
+                    *(--prefix) = 'b';
+                    *(--prefix) = '0';
+                    nprefix += 2;
                     break;
                 case 8:
-                    *(--digits) = 'o';
-                    *(--digits) = '0';
-                    ndigits += 2;
+                    *(--prefix) = 'o';
+                    *(--prefix) = '0';
+                    nprefix += 2;
                     break;
                 case 16:
-                    *(--digits) = digitchars[16];
-                    *(--digits) = '0';
-                    ndigits += 2;
+                    *(--prefix) = digitchars[16];
+                    *(--prefix) = '0';
+                    nprefix += 2;
                     break;
                 }
             }
         }
 
         // determine sign
-        char sign = 0;
-
         if (isNegative) {
-            sign = '-';
+            *(--prefix) = '-';
+            ++nprefix;
         } else if (flags.sign == '+' || flags.sign == ' ') {
-            sign = flags.sign;
+            *(--prefix) = flags.sign;
+            ++nprefix;
         }
 
-        // finish up out-of-range chars
+        // for hex chars, the prefix should be part of the value
         if (isChar && charAsHex) {
-            if (sign) {
-                *(--digits) = sign;
-                ++ndigits;
-                sign = 0;
+            if (nprefix) {
+                digits -= nprefix;
+                ndigits += nprefix;
+                memcpy(digits, prefix, nprefix);
+                nprefix = 0;
             }
             *(--digits) = '(';
             ++ndigits;
         }
 
         // determine spacing
-        int32_t nchars = sign ? ndigits + 1 : ndigits;
         int32_t leadSpace = 0;
         int32_t tailSpace = 0;
         {
+            int32_t nchars = ndigits + nprefix;
             int32_t width = std::max(flags.width, nchars);
 
             switch (flags.align) {
             case '^':
                 leadSpace = (width / 2) - ((nchars + 1) / 2); // nchars rounded up
                 tailSpace = ((width + 1) / 2) - (nchars / 2); // width rounded up
-                leadSpace += (width - nchars - 1) & 1; // if both are even or both are odd, we need to add one for correction
-                tailSpace -= (width - nchars - 1) & 1; // if both are even or both are odd, we need to remove one for correction
+                leadSpace += (width & 1) & (nchars & 1); // if both are odd, we need to add one for correction
+                tailSpace -= (width & 1) & (nchars & 1); // if both are odd, we need to remove one for correction
                 break;
             case '<':
                 tailSpace = width - nchars;
@@ -467,9 +470,19 @@ namespace sp {
             }
         }
 
-        // print sign, if it should be before the padding
-        if (sign && flags.align == '=') {
-            write_char(writer, sign);
+        // print sign and alternate prefix, if they should be before the padding
+        if (nprefix) {
+            switch (flags.align) {
+            case '^':
+            case '>':
+                break;
+            case '<':
+            case '=':
+            default:
+                writer.write(nprefix, prefix);
+                nprefix = 0;
+                break;
+            }
         }
 
         // apply the leading padding
@@ -479,9 +492,9 @@ namespace sp {
             write_char(writer, fill);
         }
 
-        // print the sign, if it should be after the padding
-        if (sign && flags.align != '=') {
-            write_char(writer, sign);
+        // print the prefix, if it should be after the padding
+        if (nprefix) {
+            writer.write(nprefix, prefix);
         }
 
         // print digits
@@ -542,9 +555,17 @@ namespace sp {
         snprintf(numFormat, sizeof(numFormat), "%%+.%d%c%s", precision, type, suffix);
 
         // produce the formatted value
+#if defined(__MINGW32__) || (defined(_MSC_VER) && _MSC_VER < 1900)
+        unsigned int prevOutputFormat = _set_output_format(_TWO_DIGIT_EXPONENT);
+#endif
+
         char buffer[512];
         const int32_t ndigits = snprintf(buffer, sizeof(buffer), numFormat, value) - 1;
         const auto digits = buffer + 1;
+
+#if defined(__MINGW32__) || (defined(_MSC_VER) && _MSC_VER < 1900)
+        _set_output_format(prevOutputFormat);
+#endif
 
         // determine sign
         char sign = 0;
