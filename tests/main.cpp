@@ -210,6 +210,9 @@ int main()
     {
         TEST_FORMAT("true", "{}", true);
         TEST_FORMAT("false", "{}", false);
+        TEST_FORMAT("0", "{:d}", false);
+        TEST_FORMAT("1", "{:x}", true);
+        TEST_FORMAT(" true ", "{:^6}", true);
 
         TEST_FORMAT("1", "{}", (signed char)1);
         TEST_FORMAT("1", "{}", (unsigned char)1);
@@ -299,6 +302,7 @@ int main()
 
         TEST_FORMAT("   12", "{:5g}", 12.0f);
         TEST_FORMAT("42.0101  ", "{:<9.6g}", 42.0101);
+        TEST_FORMAT("  12  ", "{:^6}", 12.0);
         TEST_FORMAT("xxx32.007", "{:x>9.3f}", 32.00723f);
         TEST_FORMAT("__1__", "{:_^5g}", 1.0f);
         TEST_FORMAT("??2???", "{:?^6g}", 2.0f);

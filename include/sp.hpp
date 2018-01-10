@@ -588,8 +588,8 @@ namespace sp {
         case '^':
             leadSpace = (width / 2) - ((nchars + 1) / 2); // nchars rounded up
             tailSpace = ((width + 1) / 2) - (nchars / 2); // width rounded up
-            leadSpace += (width - nchars - 1) & 1; // if both are even or both are odd, we need to add one for correction
-            tailSpace -= (width - nchars - 1) & 1; // if both are even or both are odd, we need to remove one for correction
+            leadSpace += (width & 1) & (nchars & 1); // if both are odd, we need to add one for correction
+            tailSpace -= (width & 1) & (nchars & 1); // if both are odd, we need to remove one for correction
             break;
         case '<':
             tailSpace = width - nchars;
@@ -628,14 +628,8 @@ namespace sp {
         return true;
     }
 
-    inline bool format_string(IWriter& writer, const StringView& format, const StringView& str)
+    inline bool format_string(IWriter& writer, const sp::FormatFlags& flags, const StringView& str)
     {
-        FormatFlags flags;
-
-        if (!parse_format(format, &flags)) {
-            return false;
-        }
-
         // determine the amount of characters to write
         auto nchars = str.length;
 
@@ -654,8 +648,8 @@ namespace sp {
         case '^':
             leadSpace = (width / 2) - ((nchars + 1) / 2); // nchars rounded up
             tailSpace = ((width + 1) / 2) - (nchars / 2); // width rounded up
-            leadSpace += (width - nchars - 1) & 1; // if both are even or both are odd, we need to add one for correction
-            tailSpace -= (width - nchars - 1) & 1; // if both are even or both are odd, we need to remove one for correction
+            leadSpace += (width & 1) & (nchars & 1); // if both are odd, we need to add one for correction
+            tailSpace -= (width & 1) & (nchars & 1); // if both are odd, we need to remove one for correction
             break;
         case '>':
             leadSpace = width - nchars;
@@ -882,7 +876,23 @@ namespace sp {
 
     inline bool format_value(IWriter& writer, const StringView& fmt, bool value)
     {
-        return format_string(writer, fmt, value ? "true" : "false");
+        FormatFlags flags;
+
+        if (parse_format(fmt, &flags)) {
+            switch (flags.type) {
+                case 'b':
+                case 'c':
+                case 'd':
+                case 'o':
+                case 'x':
+                case 'X':
+                    return format_int(writer, flags, false, (uint64_t)value);
+                default:
+                    return format_string(writer, flags, value ? "true" : "false");
+            }
+        }
+
+        return false;
     }
 
     inline bool format_value(IWriter& writer, const StringView& fmt, float value)
@@ -998,17 +1008,21 @@ namespace sp {
 
     inline bool format_value(IWriter& writer, const StringView& fmt, char value[])
     {
-        return format_string(writer, fmt, value);
+        return format_value(writer, fmt, StringView(value));
     }
 
     inline bool format_value(IWriter& writer, const StringView& fmt, const char value[])
     {
-        return format_string(writer, fmt, value);
+        return format_value(writer, fmt, StringView(value));
     }
 
     inline bool format_value(IWriter& writer, const StringView& fmt, const StringView& value)
     {
-        return format_string(writer, fmt, value);
+        FormatFlags flags;
+
+        return parse_format(fmt, &flags)
+            ? format_string(writer, flags, value)
+            : false;
     }
 
     template <class T>
