@@ -276,6 +276,13 @@ int main()
 
     TEST_CASE("Float formats")
     {
+        TEST_FORMAT("nan", "{}", NAN);
+        TEST_FORMAT("NAN", "{:F}", NAN);
+        TEST_FORMAT("inf", "{}", INFINITY);
+        TEST_FORMAT("INF", "{:F}", INFINITY);
+        TEST_FORMAT("-inf", "{}", -INFINITY);
+        TEST_FORMAT("-INF", "{:F}", -INFINITY);
+
         TEST_FORMAT("1", "{}", 1.0);
         TEST_FORMAT("1.5", "{}", 1.5f);
         TEST_FORMAT("1.79769313486232e+308", "{}", DBL_MAX);

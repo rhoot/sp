@@ -9,10 +9,12 @@
 // You should have received a copy of the CC0 Public Domain Dedication along
 // with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 
+#include <cmath> // NAN, INFINITY
 #include <cstddef> // std::nullptr_t
 #include <cstdint> // int32_t, uint64_t
 #include <cstdio> // std::snprintf, std::FILE, std::fwrite
 #include <cstring> // std::memcpy
+#include <cctype> // std::isupper
 #include <algorithm> // std::min, std::max
 #include <limits> // std::numeric_limits
 #include <utility> // std::forward
@@ -551,21 +553,35 @@ namespace sp {
             break;
         }
 
-        char numFormat[16];
-        snprintf(numFormat, sizeof(numFormat), "%%+.%d%c%s", precision, type, suffix);
-
         // produce the formatted value
-#if defined(__MINGW32__) || (defined(_MSC_VER) && _MSC_VER < 1900)
-        unsigned int prevOutputFormat = _set_output_format(_TWO_DIGIT_EXPONENT);
-#endif
-
         char buffer[512];
-        const int32_t ndigits = snprintf(buffer, sizeof(buffer), numFormat, value) - 1;
-        const auto digits = buffer + 1;
+        const char* digits = buffer;
+        int32_t ndigits = 0;
 
-#if defined(__MINGW32__) || (defined(_MSC_VER) && _MSC_VER < 1900)
-        _set_output_format(prevOutputFormat);
-#endif
+        if (std::isnan(value)) {
+            const char* str = std::isupper(flags.type) ? "NAN" : "nan";
+            strncpy(buffer, str, 3);
+            ndigits = 3;
+        } else if (std::isinf(value)) {
+            const char* str = std::isupper(flags.type) ? "INF" : "inf";
+            strncpy(buffer, str, 3);
+            ndigits = 3;
+        } else {
+            char numFormat[16];
+            snprintf(numFormat, sizeof(numFormat), "%%+.%d%c%s", precision, type, suffix);
+
+            // produce the formatted value
+    #if defined(__MINGW32__) || (defined(_MSC_VER) && _MSC_VER < 1900)
+            unsigned int prevOutputFormat = _set_output_format(_TWO_DIGIT_EXPONENT);
+    #endif
+
+            ndigits = snprintf(buffer, sizeof(buffer), numFormat, value) - 1;
+            digits = buffer + 1;
+
+    #if defined(__MINGW32__) || (defined(_MSC_VER) && _MSC_VER < 1900)
+            _set_output_format(prevOutputFormat);
+    #endif
+        }
 
         // determine sign
         char sign = 0;
