@@ -567,7 +567,7 @@ namespace sp {
             strncpy(buffer, str, 3);
             ndigits = 3;
         } else {
-            char numFormat[16];
+            char numFormat[17];
             snprintf(numFormat, sizeof(numFormat), "%%+.%d%c%s", precision, type, suffix);
 
             // produce the formatted value
