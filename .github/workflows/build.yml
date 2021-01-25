@@ -18,10 +18,9 @@ jobs:
                     - name: macos-x86_64
                       os: macos-latest
         steps:
+            - uses: actions/checkout@v2
             - name: Build
-              run: |
-                  pwd
-                  make build/test 'CXXFLAGS=${{ matrix.cxxflags }}'
+              run: make build/test 'CXXFLAGS=${{ matrix.cxxflags }}'
             - name: Test
               if: ${{ !endsWith(matrix.name, '-arm64') }}
               run: make test
@@ -38,6 +37,7 @@ jobs:
                     - name: windows-x86_64
                       arch: x64
         steps:
+            - uses: actions/checkout@v2
             - uses: ilammy/msvc-dev-cmd@v1.5.0
               with:
                   arch: ${{ matrix.arch }}
