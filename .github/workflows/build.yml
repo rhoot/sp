@@ -23,7 +23,7 @@ jobs:
               run: make build/test 'CXXFLAGS=${{ matrix.cxxflags }}'
             - name: Test
               if: ${{ !endsWith(matrix.name, '-arm64') }}
-              run: make test
+              run: build/test
 
     windows:
         name: ${{ matrix.name }}
@@ -42,7 +42,7 @@ jobs:
               with:
                   arch: ${{ matrix.arch }}
             - name: Build
-              run: cl /std:c++14 /W4 /WX /D_CRT_SECURE_NO_WARNINGS tests/main.cpp
+              run: cl /std:c++14 /W4 /WX /D_CRT_SECURE_NO_WARNINGS tests/main.cpp /LINK /OUT:test.exe
             - name: Test
               run: test.exe
             
