@@ -42,7 +42,7 @@ jobs:
               with:
                   arch: ${{ matrix.arch }}
             - name: Build
-              run: cl /std:c++14 /W4 /WX /D_CRT_SECURE_NO_WARNINGS tests/main.cpp /LINK /OUT:test.exe
+              run: cl /std:c++14 /W4 /WX /D_CRT_SECURE_NO_WARNINGS tests/main.cpp /link /OUT:test.exe
             - name: Test
               run: test.exe
             
