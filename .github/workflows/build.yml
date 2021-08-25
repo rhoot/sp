@@ -20,7 +20,7 @@ jobs:
         steps:
             - uses: actions/checkout@v2
             - name: Build
-              run: make build/test 'CXXFLAGS=${{ matrix.flags }} LDFLAGS=${{ matrix.flags }}'
+              run: make build/test 'CXXFLAGS=${{ matrix.flags }}' 'LDFLAGS=${{ matrix.flags }}'
             - name: Test
               if: ${{ !endsWith(matrix.name, '-arm64') }}
               run: build/test
